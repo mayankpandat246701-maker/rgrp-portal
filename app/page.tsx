@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 const navigationLinks = [
-  { href: "/join", label: "Join" },
+  { href: "/join", label: "कार्यकर्ता आवेदन" },
+  { href: "/application-status", label: "आवेदन स्थिति देखें" },
   { href: "/verify", label: "Verify" },
-  { href: "/admin/login", label: "Admin Login" },
+  { href: "/admin/login", label: "Admin Login / एडमिन लॉगिन" },
   { href: "/karyakarta/login", label: "Karyakarta Login" },
 ];
 

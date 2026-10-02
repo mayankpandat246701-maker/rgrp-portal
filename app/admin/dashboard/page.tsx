@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { KaryakartaApplicationStatus } from "@prisma/client";
 import { LogoutButton } from "@/components/admin/logout-button";
@@ -83,6 +84,17 @@ export default async function AdminDashboardPage() {
             </article>
           ))}
         </div>
+      </div>
+      <div className="mt-8">
+        <Link
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-emerald-900 shadow-sm ring-1 ring-stone-200 transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+          href="/admin/applications"
+        >
+          <span className="text-base font-bold">आवेदन प्रबंधन</span>
+          <span className="ml-2 text-sm font-normal text-emerald-800">
+            Review Applications
+          </span>
+        </Link>
       </div>
     </section>
   );

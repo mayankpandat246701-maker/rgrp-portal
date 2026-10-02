@@ -25,18 +25,32 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-IN" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <header className="border-b border-stone-200 bg-white">
-          <div className="mx-auto flex w-full max-w-5xl items-center px-6 py-5 sm:px-10">
+        <header className="site-header border-b border-stone-200 bg-white">
+          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4 sm:px-10">
             <Link
               className="text-sm font-semibold tracking-wide text-emerald-900"
               href="/"
             >
               RGRP Portal
             </Link>
+            <nav aria-label="मुख्य नेविगेशन" className="flex flex-wrap gap-2">
+              <Link
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-emerald-800"
+                href="/application-status"
+              >
+                आवेदन स्थिति देखें
+              </Link>
+              <Link
+                className="rounded-lg bg-emerald-900 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+                href="/admin/login"
+              >
+                Admin Login / एडमिन लॉगिन
+              </Link>
+            </nav>
           </div>
         </header>
         <main className="flex flex-1 flex-col">{children}</main>
-        <footer className="border-t border-stone-200 bg-white">
+        <footer className="site-footer border-t border-stone-200 bg-white">
           <div className="mx-auto w-full max-w-5xl px-6 py-5 text-sm text-stone-500 sm:px-10">
             Rashtriya Gau Raksha Parishad
           </div>
