@@ -23,6 +23,12 @@ enum KaryakartaStatus {
   INACTIVE
 }
 
+enum KaryakartaApplicationStatus {
+  PENDING
+  APPROVED
+  BLOCKED
+}
+
 enum NoticeStatus {
   DRAFT
   PUBLISHED
@@ -65,6 +71,39 @@ model Karyakarta {
   @@index([zone])
   @@index([district])
   @@index([createdAt])
+}
+
+model KaryakartaApplication {
+  id                   String                      @id @default(cuid())
+  applicationReference String                      @unique
+  fullName             String
+  fatherName           String
+  motherName           String
+  dateOfBirth          DateTime                    @db.Date
+  gender               String
+  category             String
+  mobile               String
+  alternateMobile      String?
+  email                String?
+  address              String
+  pincode              String
+  district             String
+  state                String
+  constituency         String
+  education            String
+  occupation           String
+  organizationName     String?
+  designation          String?
+  joiningReason        String?
+  socialMediaLinks     String?
+  referenceBy          String?
+  status               KaryakartaApplicationStatus @default(PENDING)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([mobile])
 }
 
 model Notice {

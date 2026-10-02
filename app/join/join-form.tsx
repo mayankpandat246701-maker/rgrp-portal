@@ -2,108 +2,65 @@
 
 import { useState, type FormEvent } from "react";
 import { ClientFormNotice } from "@/components/ui/client-form-notice";
-import { FileUploadField } from "@/components/ui/file-upload-field";
 import { FormField, inputClassName } from "@/components/ui/form-field";
 import { Icon } from "@/components/ui/icon";
 
-const allowedExtensions = new Set(["jpg", "jpeg", "png", "webp", "pdf"]);
-const maxFileSize = 5 * 1024 * 1024;
-
-const requiredFields: Record<string, string> = {
-  fullName: "कृपया अपना पूरा नाम दर्ज करें।",
-  guardianName: "कृपया पिता/अभिभावक का नाम दर्ज करें।",
-  birthDate: "कृपया जन्म तिथि चुनें।",
-  mobile: "कृपया मोबाइल नंबर दर्ज करें।",
-  address: "कृपया पूरा पता दर्ज करें।",
-  state: "कृपया राज्य दर्ज करें।",
-  zone: "कृपया ज़ोन दर्ज करें।",
-  district: "कृपया जिला दर्ज करें।",
-  pinCode: "कृपया पिन कोड दर्ज करें।",
-  designation: "कृपया इच्छित पद दर्ज करें।",
+type ApplicationResponse = {
+  success: boolean;
+  data: {
+    applicationReference: string;
+  };
 };
 
-function validateFile(file: File | null, fieldName: string) {
-  if (!file) return `${fieldName} चुनें।`;
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (!allowedExtensions.has(extension)) {
-    return "केवल JPG, PNG, WebP या PDF फ़ाइल स्वीकार्य है।";
-  }
-  if (file.size > maxFileSize) {
-    return "फ़ाइल का आकार 5 MB से कम होना चाहिए।";
-  }
-  return "";
-}
-
-function inputDescription(id: string, error?: string) {
-  return error ? `${id}-error` : undefined;
+function isApplicationResponse(value: unknown): value is ApplicationResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "success" in value &&
+    value.success === true &&
+    "data" in value &&
+    typeof value.data === "object" &&
+    value.data !== null &&
+    "applicationReference" in value.data &&
+    typeof value.data.applicationReference === "string"
+  );
 }
 
 export function JoinForm() {
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [identityDocument, setIdentityDocument] = useState<File | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [notice, setNotice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [applicationReference, setApplicationReference] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice("");
+    const form = event.currentTarget;
+    setError("");
+    setApplicationReference("");
+    setIsSubmitting(true);
 
-    const formData = new FormData(event.currentTarget);
-    const nextErrors: Record<string, string> = {};
+    const formData = new FormData(form);
+    formData.delete("consent");
+    const payload = Object.fromEntries(formData.entries());
 
-    for (const [field, message] of Object.entries(requiredFields)) {
-      if (!String(formData.get(field) ?? "").trim()) {
-        nextErrors[field] = message;
+    try {
+      const response = await fetch("/api/karyakarta/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result: unknown = await response.json();
+
+      if (!response.ok || !isApplicationResponse(result)) {
+        throw new Error("Application submission failed.");
       }
+
+      setApplicationReference(result.data.applicationReference);
+      form.reset();
+    } catch {
+      setError("आपका आवेदन जमा नहीं हो सका। कृपया जानकारी जाँचकर फिर प्रयास करें।");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const mobile = String(formData.get("mobile") ?? "").trim();
-    if (mobile && !/^[6-9]\d{9}$/.test(mobile)) {
-      nextErrors.mobile = "कृपया 10 अंकों का सही मोबाइल नंबर दर्ज करें।";
-    }
-
-    const pinCode = String(formData.get("pinCode") ?? "").trim();
-    if (pinCode && !/^[1-9]\d{5}$/.test(pinCode)) {
-      nextErrors.pinCode = "कृपया 6 अंकों का सही पिन कोड दर्ज करें।";
-    }
-
-    const email = String(formData.get("email") ?? "").trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      nextErrors.email = "कृपया सही ईमेल पता दर्ज करें।";
-    }
-
-    const photoError = validateFile(photo, "पासपोर्ट साइज फोटो");
-    const documentError = validateFile(identityDocument, "पहचान दस्तावेज़");
-    if (photoError) nextErrors.photo = photoError;
-    if (documentError) nextErrors.identityDocument = documentError;
-    if (!formData.get("consent")) {
-      nextErrors.consent = "आगे बढ़ने के लिए कृपया सहमति दें।";
-    }
-
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
-
-    setNotice(
-      "पंजीकरण सुविधा जल्द ही सक्रिय होगी। आपका डेटा अभी भेजा नहीं गया है।",
-    );
-  }
-
-  function updateFile(
-    file: File | null,
-    field: "photo" | "identityDocument",
-  ) {
-    if (field === "photo") setPhoto(file);
-    else setIdentityDocument(file);
-
-    const fileError = validateFile(
-      file,
-      field === "photo" ? "पासपोर्ट साइज फोटो" : "पहचान दस्तावेज़",
-    );
-    setErrors((current) => ({
-      ...current,
-      [field]: fileError,
-    }));
-    setNotice("");
   }
 
   return (
@@ -125,7 +82,7 @@ export function JoinForm() {
         </span>
       </div>
 
-      <form className="space-y-8 p-5 sm:p-8" noValidate onSubmit={handleSubmit}>
+      <form className="space-y-8 p-5 sm:p-8" onSubmit={handleSubmit}>
         <section aria-labelledby="personal-details-heading">
           <div className="mb-5">
             <h2
@@ -139,127 +96,119 @@ export function JoinForm() {
             </p>
           </div>
           <div className="grid gap-5 md:grid-cols-2">
-            <FormField
-              error={errors.fullName}
-              id="fullName"
-              label="पूरा नाम / Full Name"
-              required
-            >
+            <FormField id="fullName" label="पूरा नाम / Full Name" required>
               <input
-                aria-describedby={inputDescription("fullName", errors.fullName)}
-                aria-invalid={Boolean(errors.fullName)}
                 autoComplete="name"
                 className={inputClassName}
                 id="fullName"
+                maxLength={150}
                 name="fullName"
                 placeholder="अपना पूरा नाम लिखें"
                 required
               />
             </FormField>
-            <FormField
-              error={errors.guardianName}
-              id="guardianName"
-              label="पिता/अभिभावक का नाम"
-              required
-            >
+            <FormField id="fatherName" label="पिता का नाम" required>
               <input
-                aria-describedby={inputDescription(
-                  "guardianName",
-                  errors.guardianName,
-                )}
-                aria-invalid={Boolean(errors.guardianName)}
                 autoComplete="off"
                 className={inputClassName}
-                id="guardianName"
-                name="guardianName"
-                placeholder="पिता या अभिभावक का पूरा नाम"
+                id="fatherName"
+                maxLength={150}
+                name="fatherName"
                 required
               />
             </FormField>
-            <FormField
-              error={errors.birthDate}
-              id="birthDate"
-              label="जन्म तिथि"
-              required
-            >
+            <FormField id="motherName" label="माता का नाम" required>
               <input
-                aria-describedby={inputDescription(
-                  "birthDate",
-                  errors.birthDate,
-                )}
-                aria-invalid={Boolean(errors.birthDate)}
+                autoComplete="off"
                 className={inputClassName}
-                id="birthDate"
-                name="birthDate"
+                id="motherName"
+                maxLength={150}
+                name="motherName"
+                required
+              />
+            </FormField>
+            <FormField id="dateOfBirth" label="जन्म तिथि" required>
+              <input
+                className={inputClassName}
+                id="dateOfBirth"
+                name="dateOfBirth"
                 required
                 type="date"
               />
             </FormField>
+            <FormField id="gender" label="लिंग" required>
+              <select
+                className={inputClassName}
+                defaultValue=""
+                id="gender"
+                name="gender"
+                required
+              >
+                <option disabled value="">
+                  चुनें
+                </option>
+                <option value="पुरुष">पुरुष</option>
+                <option value="महिला">महिला</option>
+                <option value="अन्य">अन्य</option>
+              </select>
+            </FormField>
+            <FormField id="category" label="श्रेणी" required>
+              <input
+                className={inputClassName}
+                id="category"
+                maxLength={80}
+                name="category"
+                placeholder="अपनी श्रेणी दर्ज करें"
+                required
+              />
+            </FormField>
             <FormField
-              error={errors.mobile}
               hint="10 अंकों का मोबाइल नंबर दर्ज करें।"
               id="mobile"
               label="मोबाइल नंबर"
               required
             >
               <input
-                aria-describedby={`mobile-hint${errors.mobile ? " mobile-error" : ""}`}
-                aria-invalid={Boolean(errors.mobile)}
                 autoComplete="tel-national"
                 className={inputClassName}
                 id="mobile"
-                inputMode="numeric"
-                maxLength={10}
+                inputMode="tel"
+                maxLength={16}
                 name="mobile"
                 placeholder="उदाहरण: 9876543210"
                 required
                 type="tel"
               />
             </FormField>
-            <FormField error={errors.email} id="email" label="ईमेल">
+            <FormField id="alternateMobile" label="वैकल्पिक मोबाइल नंबर">
               <input
-                aria-describedby={inputDescription("email", errors.email)}
-                aria-invalid={Boolean(errors.email)}
+                autoComplete="tel-national"
+                className={inputClassName}
+                id="alternateMobile"
+                inputMode="tel"
+                maxLength={16}
+                name="alternateMobile"
+                type="tel"
+              />
+            </FormField>
+            <FormField id="email" label="ईमेल">
+              <input
                 autoComplete="email"
                 className={inputClassName}
                 id="email"
+                maxLength={254}
                 name="email"
                 placeholder="name@example.com"
                 type="email"
               />
             </FormField>
-            <FormField
-              error={errors.designation}
-              id="designation"
-              label="इच्छित पद / Designation"
-              required
-            >
-              <input
-                aria-describedby={inputDescription(
-                  "designation",
-                  errors.designation,
-                )}
-                aria-invalid={Boolean(errors.designation)}
-                className={inputClassName}
-                id="designation"
-                name="designation"
-                placeholder="अपनी इच्छित भूमिका लिखें"
-                required
-              />
-            </FormField>
             <div className="md:col-span-2">
-              <FormField
-                error={errors.address}
-                id="address"
-                label="पूरा पता"
-                required
-              >
+              <FormField id="address" label="पूरा पता" required>
                 <textarea
-                  aria-describedby={inputDescription("address", errors.address)}
-                  aria-invalid={Boolean(errors.address)}
                   autoComplete="street-address"
                   className={`${inputClassName} min-h-24 resize-y`}
                   id="address"
+                  maxLength={1000}
                   name="address"
                   placeholder="मकान/गली, क्षेत्र और निकटतम पहचान लिखें"
                   required
@@ -279,105 +228,135 @@ export function JoinForm() {
               अपना कार्यक्षेत्र और स्थान दर्ज करें।
             </p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { id: "state", label: "राज्य", placeholder: "राज्य का नाम" },
-              { id: "zone", label: "ज़ोन", placeholder: "ज़ोन का नाम" },
-              { id: "district", label: "जिला", placeholder: "जिले का नाम" },
-              {
-                id: "pinCode",
-                label: "पिन कोड",
-                placeholder: "उदाहरण: 110001",
-              },
-            ].map(({ id, label, placeholder }) => (
-              <FormField
-                error={errors[id]}
-                id={id}
-                key={id}
-                label={label}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <FormField id="state" label="राज्य" required>
+              <input
+                autoComplete="address-level1"
+                className={inputClassName}
+                id="state"
+                maxLength={120}
+                name="state"
                 required
-              >
-                <input
-                  aria-describedby={inputDescription(id, errors[id])}
-                  aria-invalid={Boolean(errors[id])}
-                  autoComplete={id === "pinCode" ? "postal-code" : "off"}
-                  className={inputClassName}
-                  id={id}
-                  inputMode={id === "pinCode" ? "numeric" : undefined}
-                  maxLength={id === "pinCode" ? 6 : undefined}
-                  name={id}
-                  placeholder={placeholder}
-                  required
-                />
-              </FormField>
-            ))}
+              />
+            </FormField>
+            <FormField id="district" label="जिला" required>
+              <input
+                autoComplete="address-level2"
+                className={inputClassName}
+                id="district"
+                maxLength={120}
+                name="district"
+                required
+              />
+            </FormField>
+            <FormField id="constituency" label="विधानसभा क्षेत्र" required>
+              <input
+                className={inputClassName}
+                id="constituency"
+                maxLength={120}
+                name="constituency"
+                required
+              />
+            </FormField>
+            <FormField
+              hint="6 अंकों का पिन कोड दर्ज करें।"
+              id="pincode"
+              label="पिन कोड"
+              required
+            >
+              <input
+                autoComplete="postal-code"
+                className={inputClassName}
+                id="pincode"
+                inputMode="numeric"
+                maxLength={6}
+                name="pincode"
+                required
+              />
+            </FormField>
           </div>
         </section>
 
         <section aria-labelledby="service-heading">
           <div className="mb-5">
             <h2 className="text-lg font-bold text-stone-900" id="service-heading">
-              सेवा और कौशल
+              शिक्षा और संगठन जानकारी
             </h2>
-          </div>
-          <FormField
-            id="skills"
-            label="सेवा/कौशल क्षेत्र"
-            hint="जैसे: पशु सेवा, जनसंपर्क, आयोजन या अन्य कौशल"
-          >
-            <textarea
-              className={`${inputClassName} min-h-24 resize-y`}
-              id="skills"
-              name="skills"
-              placeholder="अपने अनुभव या रुचि के क्षेत्र लिखें"
-              rows={3}
-            />
-          </FormField>
-        </section>
-
-        <section aria-labelledby="documents-heading">
-          <div className="mb-5">
-            <h2
-              className="text-lg font-bold text-stone-900"
-              id="documents-heading"
-            >
-              फोटो और पहचान दस्तावेज़
-            </h2>
-            <p className="mt-1 text-sm text-stone-500">
-              JPG, PNG, WebP or PDF, maximum 5 MB.
-            </p>
           </div>
           <div className="grid gap-5 md:grid-cols-2">
-            <FileUploadField
-              accept=".jpg,.jpeg,.png,.webp,.pdf"
-              error={errors.photo}
-              file={photo}
-              id="photo"
-              label="पासपोर्ट साइज फोटो"
-              onChange={(file) => updateFile(file, "photo")}
-              required
-            />
-            <FileUploadField
-              accept=".jpg,.jpeg,.png,.webp,.pdf"
-              error={errors.identityDocument}
-              file={identityDocument}
-              id="identityDocument"
-              label="पहचान प्रमाण / Aadhaar या अन्य वैध दस्तावेज़"
-              onChange={(file) => updateFile(file, "identityDocument")}
-              required
-            />
+            <FormField id="education" label="शिक्षा" required>
+              <input
+                className={inputClassName}
+                id="education"
+                maxLength={120}
+                name="education"
+                required
+              />
+            </FormField>
+            <FormField id="occupation" label="व्यवसाय" required>
+              <input
+                className={inputClassName}
+                id="occupation"
+                maxLength={120}
+                name="occupation"
+                required
+              />
+            </FormField>
+            <FormField id="organizationName" label="संगठन का नाम">
+              <input
+                className={inputClassName}
+                id="organizationName"
+                maxLength={200}
+                name="organizationName"
+              />
+            </FormField>
+            <FormField id="designation" label="इच्छित पद / Designation">
+              <input
+                className={inputClassName}
+                id="designation"
+                maxLength={120}
+                name="designation"
+                placeholder="अपनी इच्छित भूमिका लिखें"
+              />
+            </FormField>
+            <div className="md:col-span-2">
+              <FormField id="joiningReason" label="जुड़ने का कारण">
+                <textarea
+                  className={`${inputClassName} min-h-24 resize-y`}
+                  id="joiningReason"
+                  maxLength={2000}
+                  name="joiningReason"
+                  rows={3}
+                />
+              </FormField>
+            </div>
+            <FormField
+              hint='JSON format, उदाहरण: {"instagram":"https://example.com"}'
+              id="socialMediaLinks"
+              label="सोशल मीडिया लिंक (JSON)"
+            >
+              <textarea
+                className={`${inputClassName} min-h-24 resize-y`}
+                id="socialMediaLinks"
+                maxLength={4000}
+                name="socialMediaLinks"
+                rows={3}
+              />
+            </FormField>
+            <FormField id="referenceBy" label="संदर्भ देने वाले का नाम">
+              <input
+                className={inputClassName}
+                id="referenceBy"
+                maxLength={150}
+                name="referenceBy"
+              />
+            </FormField>
           </div>
-          <p className="mt-4 rounded-xl border border-orange-200/80 bg-orange-50/70 px-4 py-3 text-sm leading-6 text-orange-950">
-            पहचान दस्तावेज़ केवल सत्यापन हेतु अधिकृत प्रशासनिक टीम द्वारा देखे
-            जाएंगे।
-          </p>
         </section>
 
         <section className="space-y-5 border-t border-stone-100 pt-6">
           <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-stone-50 p-4">
             <input
-              aria-describedby={errors.consent ? "consent-error" : undefined}
-              aria-invalid={Boolean(errors.consent)}
               className="mt-1 size-4 shrink-0 accent-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
               name="consent"
               required
@@ -391,27 +370,38 @@ export function JoinForm() {
               </span>
             </span>
           </label>
-          {errors.consent ? (
-            <p className="text-sm font-medium text-red-700" id="consent-error" role="alert">
-              {errors.consent}
-            </p>
+
+          {applicationReference ? (
+            <div
+              className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"
+              role="status"
+            >
+              <p className="font-semibold">आपका आवेदन सफलतापूर्वक जमा हो गया है।</p>
+              <p className="mt-2 text-sm">
+                कृपया इस आवेदन संदर्भ संख्या को लिखकर सुरक्षित रखें:
+              </p>
+              <p className="mt-2 select-all rounded-lg bg-white px-4 py-3 font-mono text-lg font-bold tracking-wide">
+                {applicationReference}
+              </p>
+            </div>
           ) : null}
-          <ClientFormNotice
-            message={notice}
-            tone="warning"
-          />
+          <ClientFormNotice message={error} tone="warning" />
+
           <div className="flex flex-col gap-4 border-t border-stone-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-lg text-xs leading-5 text-stone-500">
-              अभी कोई जानकारी या फ़ाइल भेजी अथवा सहेजी नहीं जाएगी।
+              आवेदन का संदर्भ नंबर जमा करने के बाद दिखाया जाएगा।
             </p>
             <button
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isSubmitting}
               type="submit"
             >
-              पंजीकरण आवेदन जमा करें
-              <span aria-hidden="true" className="text-orange-300">
-                →
-              </span>
+              {isSubmitting ? "आवेदन जमा हो रहा है…" : "पंजीकरण आवेदन जमा करें"}
+              {!isSubmitting ? (
+                <span aria-hidden="true" className="text-orange-300">
+                  →
+                </span>
+              ) : null}
             </button>
           </div>
         </section>

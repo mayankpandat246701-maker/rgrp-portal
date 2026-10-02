@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AuthCard } from "@/components/ui/auth-card";
@@ -8,11 +9,13 @@ import { FormField, inputClassName } from "@/components/ui/form-field";
 import { Icon } from "@/components/ui/icon";
 
 export function AdminLoginForm() {
+  const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice("");
     const formData = new FormData(event.currentTarget);
@@ -29,7 +32,37 @@ export function AdminLoginForm() {
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    setNotice("सुरक्षित Admin authentication अगली चरण में सक्रिय होगी।");
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const result: unknown = await response.json();
+      const succeeded =
+        typeof result === "object" &&
+        result !== null &&
+        "success" in result &&
+        result.success === true;
+
+      if (response.ok && succeeded) {
+        router.replace("/admin/dashboard");
+        router.refresh();
+        return;
+      }
+
+      setNotice(
+        response.status === 429
+          ? "कई प्रयास किए गए हैं। कृपया कुछ देर बाद फिर कोशिश करें। Too many attempts; try again later."
+          : "ईमेल या पासवर्ड अमान्य है। Invalid email or password.",
+      );
+    } catch {
+      setNotice("लॉगिन अभी उपलब्ध नहीं है। कृपया फिर से प्रयास करें।");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -99,27 +132,14 @@ export function AdminLoginForm() {
           </div>
         </FormField>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-stone-600">
-            <input
-              className="size-4 rounded border-stone-300 accent-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-              name="rememberMe"
-              type="checkbox"
-            />
-            मुझे याद रखें
-          </label>
-          <span className="text-xs text-stone-400">
-            पासवर्ड सहायता जल्द उपलब्ध होगी
-          </span>
-        </div>
-
         <ClientFormNotice message={notice} tone="warning" />
         <button
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isSubmitting}
           type="submit"
         >
           <Icon name="lock" size={18} />
-          सुरक्षित लॉगिन
+          {isSubmitting ? "प्रवेश हो रहा है…" : "सुरक्षित लॉगिन"}
         </button>
         <p className="text-center text-xs leading-5 text-stone-500">
           अधिकृत प्रशासनिक उपयोग के लिए בלבד
