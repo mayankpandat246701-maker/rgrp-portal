@@ -15,6 +15,11 @@ enum AdminRole {
   VIEWER
 }
 
+enum AdminAuditAction {
+  APPLICATION_APPROVED
+  APPLICATION_BLOCKED
+}
+
 enum KaryakartaStatus {
   PENDING
   APPROVED
@@ -45,6 +50,7 @@ model Admin {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   activities   AdminActivity[]
+  auditLogs    AdminAuditLog[]
 }
 
 model Karyakarta {
@@ -104,6 +110,20 @@ model KaryakartaApplication {
   @@index([status])
   @@index([createdAt])
   @@index([mobile])
+}
+
+model AdminAuditLog {
+  id            String           @id @default(cuid())
+  adminId       String
+  action        AdminAuditAction
+  applicationId String?
+  metadata      Json?
+  createdAt     DateTime         @default(now())
+  admin         Admin            @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([adminId])
+  @@index([applicationId])
+  @@index([createdAt])
 }
 
 model Notice {
