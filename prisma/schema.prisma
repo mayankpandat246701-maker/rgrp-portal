@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  NATIONAL_ADMIN
+  CONTENT_ADMIN
+  VIEWER
+}
+
+enum KaryakartaStatus {
+  PENDING
+  APPROVED
+  BLOCKED
+  REJECTED
+  INACTIVE
+}
+
+enum NoticeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Admin {
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  role         AdminRole       @default(SUPER_ADMIN)
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  activities   AdminActivity[]
+}
+
+model Karyakarta {
+  id          String           @id @default(cuid())
+  regNo       String           @unique
+  name        String
+  phone       String           @unique
+  email       String?          @unique
+  designation String?
+  state       String?
+  zone        String?
+  district    String?
+  photoUrl    String?
+  status      KaryakartaStatus @default(PENDING)
+  approvedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([regNo])
+  @@index([phone])
+  @@index([email])
+  @@index([status])
+  @@index([state])
+  @@index([zone])
+  @@index([district])
+  @@index([createdAt])
+}
+
+model Notice {
+  id          String       @id @default(cuid())
+  title       String
+  content     String
+  isFeatured  Boolean      @default(false)
+  status      NoticeStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AdminActivity {
+  id        String   @id @default(cuid())
+  adminId   String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  admin     Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([createdAt])
+}
