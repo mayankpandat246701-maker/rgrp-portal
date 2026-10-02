@@ -18,6 +18,16 @@ enum AdminRole {
 enum AdminAuditAction {
   APPLICATION_APPROVED
   APPLICATION_BLOCKED
+  DOCUMENTS_VERIFIED
+  DOCUMENTS_REJECTED
+  ID_CARD_TEMPLATE_UPLOADED
+  QR_GENERATED
+}
+
+enum UploadStatus {
+  PENDING
+  VERIFIED
+  REJECTED
 }
 
 enum KaryakartaStatus {
@@ -41,16 +51,18 @@ enum NoticeStatus {
 }
 
 model Admin {
-  id           String          @id @default(cuid())
-  name         String
-  email        String          @unique
-  passwordHash String
-  role         AdminRole       @default(SUPER_ADMIN)
-  isActive     Boolean         @default(true)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  activities   AdminActivity[]
-  auditLogs    AdminAuditLog[]
+  id                   String                  @id @default(cuid())
+  name                 String
+  email                String                  @unique
+  passwordHash         String
+  role                 AdminRole               @default(SUPER_ADMIN)
+  isActive             Boolean                 @default(true)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  activities           AdminActivity[]
+  auditLogs            AdminAuditLog[]
+  uploadedTemplates    IDCardTemplate[]
+  verifiedApplications KaryakartaApplication[] @relation("ApplicationDocumentVerifier")
 }
 
 model Karyakarta {
@@ -104,12 +116,34 @@ model KaryakartaApplication {
   socialMediaLinks     String?
   referenceBy          String?
   status               KaryakartaApplicationStatus @default(PENDING)
+  photoPath            String?
+  aadhaarPath          String?
+  qrCodePath           String?
+  uploadStatus         UploadStatus                @default(PENDING)
+  documentReviewReason String?
+  verifiedByAdminId    String?
+  verifiedAt           DateTime?
+  idCardGeneratedAt    DateTime?
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
+  verifiedByAdmin      Admin?                      @relation("ApplicationDocumentVerifier", fields: [verifiedByAdminId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([createdAt])
   @@index([mobile])
+  @@index([uploadStatus])
+}
+
+model IDCardTemplate {
+  id                String   @id @default(cuid())
+  templatePath      String
+  uploadedByAdminId String
+  uploadedAt        DateTime @default(now())
+  isActive          Boolean  @default(true)
+  uploadedByAdmin   Admin    @relation(fields: [uploadedByAdminId], references: [id], onDelete: Restrict)
+
+  @@index([isActive])
+  @@index([uploadedAt])
 }
 
 model AdminAuditLog {

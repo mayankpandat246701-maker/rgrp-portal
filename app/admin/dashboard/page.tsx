@@ -86,15 +86,25 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
       <div className="mt-8">
-        <Link
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-emerald-900 shadow-sm ring-1 ring-stone-200 transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
-          href="/admin/applications"
-        >
-          <span className="text-base font-bold">आवेदन प्रबंधन</span>
-          <span className="ml-2 text-sm font-normal text-emerald-800">
-            Review Applications
-          </span>
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-emerald-900 shadow-sm ring-1 ring-stone-200 transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+            href="/admin/applications"
+          >
+            <span className="text-base font-bold">आवेदन प्रबंधन</span>
+            <span className="ml-2 text-sm font-normal text-emerald-800">
+              Review Applications
+            </span>
+          </Link>
+          {admin.role === "SUPER_ADMIN" ? (
+            <Link
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/25 px-5 py-2.5 text-sm font-semibold text-emerald-950 ring-1 ring-stone-200 transition hover:bg-emerald-50"
+              href="/admin/settings/id-card-template"
+            >
+              ID कार्ड टेम्पलेट सेटिंग
+            </Link>
+          ) : null}
+        </div>
       </div>
     </section>
   );

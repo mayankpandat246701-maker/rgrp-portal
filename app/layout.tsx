@@ -41,6 +41,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 आवेदन स्थिति देखें
               </Link>
               <Link
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-emerald-800"
+                href="/karyakarta/upload-documents"
+              >
+                <span className="block">कार्यकर्ता दस्तावेज़ अपलोड</span>
+                <span className="block text-xs font-normal text-stone-500">
+                  Upload Documents
+                </span>
+              </Link>
+              <Link
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-emerald-800"
+                href="/verify-qr"
+              >
+                QR सत्यापन
+              </Link>
+              <Link
                 className="rounded-lg bg-emerald-900 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
                 href="/admin/login"
               >

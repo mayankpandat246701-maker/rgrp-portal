@@ -38,6 +38,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Private local uploads (never serve from /public)
+/uploads/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

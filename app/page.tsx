@@ -2,6 +2,10 @@ import Link from "next/link";
 
 const navigationLinks = [
   { href: "/join", label: "कार्यकर्ता आवेदन" },
+  {
+    href: "/karyakarta/upload-documents",
+    label: "कार्यकर्ता दस्तावेज़ अपलोड · Upload Documents",
+  },
   { href: "/application-status", label: "आवेदन स्थिति देखें" },
   { href: "/verify", label: "Verify" },
   { href: "/admin/login", label: "Admin Login / एडमिन लॉगिन" },

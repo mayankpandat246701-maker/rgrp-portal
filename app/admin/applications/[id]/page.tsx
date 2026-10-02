@@ -43,36 +43,38 @@ export default async function AdminApplicationDetailPage({
   if (!admin) redirect("/admin/login");
 
   const { id } = await params;
-  const [application, latestDecision] = await Promise.all([
+  const [application, latestDecision, activeTemplate] = await Promise.all([
     prisma.karyakartaApplication.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      applicationReference: true,
-      fullName: true,
-      fatherName: true,
-      motherName: true,
-      dateOfBirth: true,
-      gender: true,
-      category: true,
-      mobile: true,
-      alternateMobile: true,
-      email: true,
-      address: true,
-      pincode: true,
-      district: true,
-      state: true,
-      constituency: true,
-      education: true,
-      occupation: true,
-      organizationName: true,
-      designation: true,
-      joiningReason: true,
-      socialMediaLinks: true,
-      referenceBy: true,
-      status: true,
-      createdAt: true,
-    },
+      where: { id },
+      select: {
+        id: true,
+        applicationReference: true,
+        fullName: true,
+        fatherName: true,
+        motherName: true,
+        dateOfBirth: true,
+        gender: true,
+        category: true,
+        mobile: true,
+        alternateMobile: true,
+        email: true,
+        address: true,
+        pincode: true,
+        district: true,
+        state: true,
+        constituency: true,
+        education: true,
+        occupation: true,
+        organizationName: true,
+        designation: true,
+        joiningReason: true,
+        socialMediaLinks: true,
+        referenceBy: true,
+        status: true,
+        uploadStatus: true,
+        photoPath: true,
+        createdAt: true,
+      },
     }),
     prisma.adminAuditLog.findFirst({
       where: { applicationId: id },
@@ -83,9 +85,32 @@ export default async function AdminApplicationDetailPage({
         createdAt: true,
       },
     }),
+    prisma.iDCardTemplate.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    }),
   ]);
 
   if (!application) notFound();
+  const cardRequirements = [
+    {
+      label: "आवेदन स्वीकृत",
+      met: application.status === "APPROVED",
+    },
+    {
+      label: "दस्तावेज़ सत्यापित",
+      met: application.uploadStatus === "VERIFIED",
+    },
+    { label: "फोटो उपलब्ध", met: Boolean(application.photoPath) },
+    {
+      label: "सक्रिय पहचान-पत्र टेम्पलेट उपलब्ध",
+      met: Boolean(activeTemplate),
+    },
+  ];
+  const canOpenIdCard =
+    application.status === "APPROVED" &&
+    application.uploadStatus === "VERIFIED" &&
+    Boolean(application.photoPath && activeTemplate);
   const auditMetadata =
     typeof latestDecision?.metadata === "object" &&
     latestDecision.metadata !== null &&
@@ -251,8 +276,88 @@ export default async function AdminApplicationDetailPage({
         ) : null}
       </article>
 
+      <section className="mt-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-stone-950">
+              दस्तावेज़ और पहचान पत्र
+              <span className="ml-2 text-sm font-normal text-stone-500">
+                Documents &amp; ID Card
+              </span>
+            </h2>
+            <p className="mt-2 text-sm text-stone-600">
+              दस्तावेज़ स्थिति:{" "}
+              {application.uploadStatus === "VERIFIED"
+                ? "दस्तावेज़ सत्यापित"
+                : application.uploadStatus === "REJECTED"
+                  ? "दस्तावेज़ अस्वीकृत"
+                  : "दस्तावेज़ लंबित"}
+            </p>
+          </div>
+          {admin.role === "SUPER_ADMIN" ? (
+            <Link
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-800 px-4 py-2 text-sm font-bold text-emerald-900 transition hover:bg-emerald-50"
+              href={`/admin/applications/${encodeURIComponent(application.id)}/verify-documents`}
+            >
+              <span>दस्तावेज़ सत्यापित करें</span>
+              <span className="ml-2 text-xs font-normal">Review Documents</span>
+            </Link>
+          ) : null}
+        </div>
+
+        {admin.role === "SUPER_ADMIN" ? (
+          <>
+            <ul className="mt-5 grid gap-2 text-sm sm:grid-cols-2">
+              {cardRequirements.map((requirement) => (
+                <li
+                  className={
+                    requirement.met
+                      ? "text-emerald-800"
+                      : "text-amber-800"
+                  }
+                  key={requirement.label}
+                >
+                  <span aria-hidden="true" className="mr-2">
+                    {requirement.met ? "✓" : "•"}
+                  </span>
+                  {requirement.label}:{" "}
+                  {requirement.met ? "पूरा" : "लंबित"}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-sm text-stone-600">
+              पहचान पत्र बनाने के लिए आवेदन स्वीकृत, दस्तावेज़ सत्यापित, फोटो और सक्रिय टेम्पलेट आवश्यक हैं।
+            </p>
+            {canOpenIdCard ? (
+              <div className="mt-4">
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-800 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+                  href={`/admin/applications/${encodeURIComponent(application.id)}/id-card`}
+                >
+                  पहचान पत्र बनाएं / प्रिंट करें
+                </Link>
+              </div>
+            ) : (
+              <button
+                aria-disabled="true"
+                className="mt-4 inline-flex min-h-11 cursor-not-allowed items-center justify-center rounded-xl bg-stone-200 px-4 py-3 text-left text-sm font-semibold text-stone-600"
+                disabled
+                type="button"
+              >
+                पहचान पत्र बनाने के लिए आवेदन स्वीकृत, दस्तावेज़ सत्यापित, फोटो और सक्रिय टेम्पलेट आवश्यक हैं।
+              </button>
+            )}
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-stone-600">
+            दस्तावेज़ स्थिति केवल-पठन के लिए उपलब्ध है। दस्तावेज़ समीक्षा और
+            पहचान पत्र के लिए Super Admin से संपर्क करें।
+          </p>
+        )}
+      </section>
+
       {admin.role === "SUPER_ADMIN" ? (
-        <div className="no-print mt-6">
+        <div className="no-print mt-6 space-y-5">
           <ApplicationReviewActions
             applicationId={application.id}
             applicationReference={application.applicationReference}
