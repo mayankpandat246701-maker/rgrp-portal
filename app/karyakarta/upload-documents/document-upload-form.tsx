@@ -22,6 +22,16 @@ export function DocumentUploadForm() {
       });
       const body: unknown = await response.json();
       if (!response.ok) {
+        if (
+          typeof body === "object" &&
+          body !== null &&
+          "error" in body &&
+          typeof body.error === "string"
+        ) {
+          setIsError(true);
+          setMessage(body.error);
+          return;
+        }
         throw new Error("upload_failed");
       }
       if (
