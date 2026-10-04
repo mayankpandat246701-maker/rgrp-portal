@@ -108,6 +108,27 @@ test("returns JSON for malformed multipart requests", async () => {
   );
 });
 
+test("returns safe 429 JSON and matching retry metadata", async () => {
+  const response = await handleDocumentUpload(
+    createRequest(createValidFormData()),
+    createDependencies({
+      checkRateLimit: async () => ({
+        allowed: false,
+        retryAfterSeconds: 75,
+      }),
+    }),
+  );
+
+  assert.equal(response.status, 429);
+  assert.match(response.headers.get("content-type") ?? "", /^application\/json\b/);
+  assert.equal(response.headers.get("retry-after"), "75");
+  assert.deepEqual(await response.json(), {
+    error: "Too many upload attempts. Please wait and try again.",
+    code: "RATE_LIMITED",
+    retryAfterSeconds: 75,
+  });
+});
+
 test("rejects request bodies above the request-size limit", async () => {
   const response = await handleDocumentUpload(
     createRequest(createValidFormData(), { "content-length": "5000000" }),

@@ -102,8 +102,17 @@ function errorResponse(
   code: string,
   error: string,
   headers: HeadersInit = {},
+  retryAfterSeconds?: number,
 ): Response {
-  return jsonResponse({ error, code }, status, headers);
+  return jsonResponse(
+    {
+      error,
+      code,
+      ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+    },
+    status,
+    headers,
+  );
 }
 
 function getRequestIp(request: Request): string {
@@ -246,11 +255,16 @@ export async function handleDocumentUpload(
 
     const limit = await dependencies.checkRateLimit(getRequestIp(request));
     if (!limit.allowed) {
+      const retryAfterSeconds =
+        Number.isFinite(limit.retryAfterSeconds) && limit.retryAfterSeconds > 0
+          ? Math.ceil(limit.retryAfterSeconds)
+          : 1;
       return errorResponse(
         429,
-        "UPLOAD_RATE_LIMITED",
-        "Too many upload attempts. Try again later.",
-        { "Retry-After": String(limit.retryAfterSeconds) },
+        "RATE_LIMITED",
+        "Too many upload attempts. Please wait and try again.",
+        { "Retry-After": String(retryAfterSeconds) },
+        retryAfterSeconds,
       );
     }
 

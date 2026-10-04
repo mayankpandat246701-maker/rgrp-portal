@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import {
+  acquireUploadLock,
+  getUploadErrorMessage,
+} from "@/lib/document-upload-client";
 
 export function DocumentUploadForm() {
+  const uploadLock = useRef(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!acquireUploadLock(uploadLock)) return;
     const form = event.currentTarget;
     setIsUploading(true);
     setMessage("");
@@ -20,20 +26,13 @@ export function DocumentUploadForm() {
         method: "POST",
         body: new FormData(form),
       });
-      const body: unknown = await response.json();
       if (!response.ok) {
-        if (
-          typeof body === "object" &&
-          body !== null &&
-          "error" in body &&
-          typeof body.error === "string"
-        ) {
-          setIsError(true);
-          setMessage(body.error);
-          return;
-        }
-        throw new Error("upload_failed");
+        const body: unknown = await response.json().catch(() => null);
+        setIsError(true);
+        setMessage(getUploadErrorMessage(response.status, body));
+        return;
       }
+      const body: unknown = await response.json();
       if (
         typeof body !== "object" ||
         body === null ||
@@ -50,6 +49,7 @@ export function DocumentUploadForm() {
         "दस्तावेज़ अपलोड नहीं हो सके। कृपया जानकारी और फ़ाइलें जाँचकर फिर प्रयास करें।",
       );
     } finally {
+      uploadLock.current = false;
       setIsUploading(false);
     }
   }
