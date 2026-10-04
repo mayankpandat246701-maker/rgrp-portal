@@ -82,6 +82,18 @@ function createValidFormData(
   });
 }
 
+function createSingleDocumentFormData(
+  documentType: "photo" | "aadhaar",
+  file: File,
+): FormData {
+  const formData = createFormData({
+    applicationReference: APPLICATION_REFERENCE,
+    mobile: MOBILE,
+  });
+  formData.set(documentType, file);
+  return formData;
+}
+
 async function assertErrorResponse(
   response: Response,
   status: number,
@@ -300,6 +312,60 @@ test("rejects a file with a mismatched signature", async () => {
   );
 });
 
+test("accepts a valid standalone JPG photo", async () => {
+  const response = await handleDocumentUpload(
+    createRequest(
+      createSingleDocumentFormData(
+        "photo",
+        new File([Buffer.from([0xff, 0xd8, 0xff])], "photo.jpg", {
+          type: "image/jpeg",
+        }),
+      ),
+    ),
+    createDependencies(),
+  );
+
+  assert.equal(response.status, 201);
+});
+
+test("accepts a valid standalone PNG photo", async () => {
+  const response = await handleDocumentUpload(
+    createRequest(
+      createSingleDocumentFormData(
+        "photo",
+        new File(
+          [
+            Buffer.from([
+              0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+            ]),
+          ],
+          "photo.png",
+          { type: "image/png" },
+        ),
+      ),
+    ),
+    createDependencies(),
+  );
+
+  assert.equal(response.status, 201);
+});
+
+test("accepts a valid standalone PDF identity document", async () => {
+  const response = await handleDocumentUpload(
+    createRequest(
+      createSingleDocumentFormData(
+        "aadhaar",
+        new File([Buffer.from("%PDF-synthetic")], "identity.pdf", {
+          type: "application/pdf",
+        }),
+      ),
+    ),
+    createDependencies(),
+  );
+
+  assert.equal(response.status, 201);
+});
+
 test("does not reveal whether the submitted application identity exists", async () => {
   const response = await handleDocumentUpload(
     createRequest(
@@ -385,6 +451,53 @@ test("logs unexpected failures with only safe metadata", async () => {
   );
 
   await assertErrorResponse(response, 500, "UPLOAD_FAILED", "Upload failed");
-  assert.deepEqual(logged, { fileSize: 3, fileType: "image/jpeg" });
+  assert.deepEqual(logged, {
+    files: [
+      {
+        documentType: "photo",
+        mimeType: "image/jpeg",
+        byteSize: 3,
+        errorCategory: "DATABASE_LOOKUP_FAILED",
+      },
+    ],
+  });
   assert.doesNotMatch(JSON.stringify(logged), /secret|RGRP-|9876543210/);
+});
+
+test("returns a generic error and safe per-file log on mocked storage failure", async () => {
+  let logged: unknown;
+  const response = await handleDocumentUpload(
+    createRequest(
+      createSingleDocumentFormData(
+        "aadhaar",
+        new File([Buffer.from("%PDF-synthetic")], "identity.pdf", {
+          type: "application/pdf",
+        }),
+      ),
+    ),
+    createDependencies({
+      saveEncryptedPrivateFile: async () => {
+        throw new Error("Supabase credentials and request details");
+      },
+      logUnexpectedError: (metadata) => {
+        logged = metadata;
+      },
+    }),
+  );
+
+  await assertErrorResponse(response, 500, "UPLOAD_FAILED", "Upload failed");
+  assert.deepEqual(logged, {
+    files: [
+      {
+        documentType: "aadhaar",
+        mimeType: "application/pdf",
+        byteSize: 14,
+        errorCategory: "PRIVATE_STORAGE_SAVE_FAILED",
+      },
+    ],
+  });
+  assert.doesNotMatch(
+    JSON.stringify(logged),
+    /Supabase|credentials|RGRP-|9876543210|applications\//,
+  );
 });

@@ -96,6 +96,14 @@ export default async function AdminDashboardPage() {
               Review Applications
             </span>
           </Link>
+          {admin.role === "SUPER_ADMIN" || admin.role === "CONTENT_ADMIN" ? (
+            <Link
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/25 px-5 py-2.5 text-sm font-semibold text-emerald-950 ring-1 ring-stone-200 transition hover:bg-emerald-50"
+              href="/admin/leadership-messages"
+            >
+              संघ के मुख्य व्यक्ति और उनके संदेश
+            </Link>
+          ) : null}
           {admin.role === "SUPER_ADMIN" ? (
             <>
               <Link

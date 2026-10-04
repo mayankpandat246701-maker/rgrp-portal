@@ -183,6 +183,20 @@ model SiteContent {
   updatedAt DateTime @updatedAt
 }
 
+model LeadershipMessage {
+  id          String   @id @default(cuid())
+  name        String
+  designation String
+  message     String
+  portraitUrl String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
 model AdminActivity {
   id        String   @id @default(cuid())
   adminId   String?

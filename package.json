@@ -7,7 +7,7 @@
     "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --import tsx --test lib/env.test.ts lib/karyakarta-upload-handler.test.ts lib/document-upload-client.test.ts",
+    "test": "node --import tsx --test lib/env.test.ts lib/karyakarta-upload-handler.test.ts lib/document-upload-client.test.ts lib/leadership-message-validation.test.ts",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",

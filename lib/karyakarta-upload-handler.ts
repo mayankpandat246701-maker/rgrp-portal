@@ -49,10 +49,22 @@ type RateLimitResult = {
   allowed: boolean;
   retryAfterSeconds: number;
 };
-type SafeLogMetadata = {
-  fileSize: number | null;
-  fileType: string | null;
+type ErrorCategory =
+  | "UPLOAD_DEPENDENCY_CHECK_FAILED"
+  | "RATE_LIMIT_CHECK_FAILED"
+  | "DATABASE_LOOKUP_FAILED"
+  | "STORAGE_KEY_CREATION_FAILED"
+  | "PRIVATE_STORAGE_SAVE_FAILED"
+  | "DATABASE_UPDATE_FAILED"
+  | "PRIVATE_STORAGE_CLEANUP_FAILED"
+  | "UPLOAD_REQUEST_FAILED";
+type SafeFileMetadata = {
+  documentType: DocumentKind;
+  mimeType: string;
+  byteSize: number;
+  errorCategory: ErrorCategory;
 };
+type SafeLogMetadata = { files: SafeFileMetadata[] };
 export type UploadDependencies = {
   isRateLimitProviderAvailable(): boolean;
   isPrivateStorageAvailable(): boolean;
@@ -207,30 +219,60 @@ async function readDocument(
   return { kind, file: value, extension, contents };
 }
 
-function getSafeLogMetadata(formData?: FormData): SafeLogMetadata {
-  const files = formData
-    ? (["photo", "aadhaar"] as const)
-        .map((kind) => formData.get(kind))
-        .filter(isFile)
-    : [];
+function getSafeMimeType(mimeType: string): string {
   const supportedTypes = new Set([
     "image/jpeg",
     "image/png",
     "application/pdf",
   ]);
+  return supportedTypes.has(mimeType) ? mimeType : "unsupported";
+}
 
+function getSafeLogMetadata(
+  formData: FormData | undefined,
+  errorCategory: ErrorCategory,
+  onlyDocumentType?: DocumentKind,
+): SafeLogMetadata {
   return {
-    fileSize:
-      files.length > 0
-        ? files.reduce((total, file) => total + file.size, 0)
-        : null,
-    fileType:
-      files.length === 1 && supportedTypes.has(files[0].type)
-        ? files[0].type
-        : files.length > 0
-          ? "multiple_or_unsupported"
-          : null,
+    files: formData
+      ? (["photo", "aadhaar"] as const)
+          .filter((documentType) =>
+            onlyDocumentType ? documentType === onlyDocumentType : true,
+          )
+          .map((documentType) => ({
+            documentType,
+            value: formData.get(documentType),
+          }))
+          .filter(
+            (entry): entry is { documentType: DocumentKind; value: File } =>
+              isFile(entry.value),
+          )
+          .map(({ documentType, value }) => ({
+            documentType,
+            mimeType: getSafeMimeType(value.type),
+            byteSize: value.size,
+            errorCategory,
+          }))
+      : [],
   };
+}
+
+function logUnexpectedFailure(
+  dependencies: UploadDependencies,
+  metadata: SafeLogMetadata,
+): void {
+  try {
+    dependencies.logUnexpectedError(metadata);
+  } catch {
+    console.error(
+      JSON.stringify({
+        event: "karyakarta_documents_upload_failed",
+        route: ROUTE_NAME,
+        code: "UPLOAD_FAILED",
+        ...metadata,
+      }),
+    );
+  }
 }
 
 export async function handleDocumentUpload(
@@ -238,9 +280,16 @@ export async function handleDocumentUpload(
   dependencies: UploadDependencies,
 ): Promise<Response> {
   let formData: FormData | undefined;
-  const savedPaths: string[] = [];
+  const savedUploads: Array<{
+    storageKey: string;
+    document: AcceptedDocument;
+  }> = [];
+  let errorCategory: ErrorCategory = "UPLOAD_REQUEST_FAILED";
+  let errorDocumentType: DocumentKind | undefined;
+  let failureWasLogged = false;
 
   try {
+    errorCategory = "UPLOAD_DEPENDENCY_CHECK_FAILED";
     if (
       !dependencies.isRateLimitProviderAvailable() ||
       !dependencies.isPrivateStorageAvailable()
@@ -253,6 +302,7 @@ export async function handleDocumentUpload(
       );
     }
 
+    errorCategory = "RATE_LIMIT_CHECK_FAILED";
     const limit = await dependencies.checkRateLimit(getRequestIp(request));
     if (!limit.allowed) {
       const retryAfterSeconds =
@@ -348,6 +398,7 @@ export async function handleDocumentUpload(
       );
     }
 
+    errorCategory = "DATABASE_LOOKUP_FAILED";
     const application = await dependencies.findApplication(
       identity.data.applicationReference,
       identity.data.mobile,
@@ -362,19 +413,37 @@ export async function handleDocumentUpload(
 
     const updates: ApplicationUpdate = {};
     for (const document of documents) {
+      errorDocumentType = document.kind;
+      errorCategory = "STORAGE_KEY_CREATION_FAILED";
       const storageKey = dependencies.createStorageKey(
         document.extension,
         identity.data.applicationReference,
       );
-      await dependencies.saveEncryptedPrivateFile(
-        storageKey,
-        document.contents,
-      );
-      savedPaths.push(storageKey);
+      errorCategory = "PRIVATE_STORAGE_SAVE_FAILED";
+      try {
+        await dependencies.saveEncryptedPrivateFile(
+          storageKey,
+          document.contents,
+        );
+      } catch {
+        logUnexpectedFailure(
+          dependencies,
+          getSafeLogMetadata(
+            formData,
+            "PRIVATE_STORAGE_SAVE_FAILED",
+            document.kind,
+          ),
+        );
+        failureWasLogged = true;
+        throw new Error("Private document storage failed.");
+      }
+      savedUploads.push({ storageKey, document });
       if (document.kind === "photo") updates.photoPath = storageKey;
       else updates.aadhaarPath = storageKey;
     }
 
+    errorDocumentType = undefined;
+    errorCategory = "DATABASE_UPDATE_FAILED";
     const updated = await dependencies.updateApplication(application.id, updates);
 
     for (const document of documents) {
@@ -382,8 +451,20 @@ export async function handleDocumentUpload(
         document.kind === "photo"
           ? application.photoPath
           : application.aadhaarPath;
-      if (oldPath && !savedPaths.includes(oldPath)) {
-        await dependencies.deletePrivateFile(oldPath).catch(() => undefined);
+      if (
+        oldPath &&
+        !savedUploads.some(({ storageKey }) => storageKey === oldPath)
+      ) {
+        await dependencies.deletePrivateFile(oldPath).catch(() => {
+          logUnexpectedFailure(
+            dependencies,
+            getSafeLogMetadata(
+              formData,
+              "PRIVATE_STORAGE_CLEANUP_FAILED",
+              document.kind,
+            ),
+          );
+        });
       }
     }
 
@@ -407,21 +488,23 @@ export async function handleDocumentUpload(
     );
   } catch {
     await Promise.all(
-      savedPaths.map((storageKey) =>
-        dependencies.deletePrivateFile(storageKey).catch(() => undefined),
+      savedUploads.map(({ storageKey, document }) =>
+        dependencies.deletePrivateFile(storageKey).catch(() => {
+          logUnexpectedFailure(
+            dependencies,
+            getSafeLogMetadata(
+              formData,
+              "PRIVATE_STORAGE_CLEANUP_FAILED",
+              document.kind,
+            ),
+          );
+        }),
       ),
     );
-    try {
-      dependencies.logUnexpectedError(getSafeLogMetadata(formData));
-    } catch {
-      console.error(
-        JSON.stringify({
-          event: "karyakarta_documents_upload_failed",
-          route: ROUTE_NAME,
-          code: "UPLOAD_FAILED",
-          fileSize: null,
-          fileType: null,
-        }),
+    if (!failureWasLogged) {
+      logUnexpectedFailure(
+        dependencies,
+        getSafeLogMetadata(formData, errorCategory, errorDocumentType),
       );
     }
     return errorResponse(500, "UPLOAD_FAILED", "Upload failed");
