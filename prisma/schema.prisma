@@ -63,6 +63,68 @@ model Admin {
   auditLogs            AdminAuditLog[]
   uploadedTemplates    IDCardTemplate[]
   verifiedApplications KaryakartaApplication[] @relation("ApplicationDocumentVerifier")
+  uploadedIdCards      IdCard[]
+}
+
+enum AuditActorType {
+  ADMIN
+  KARYAKARTA
+  ANONYMOUS
+}
+
+enum AuditResult {
+  SUCCESS
+  DENIED
+  FAILED
+}
+
+model SanghLeader {
+  id           String   @id @default(cuid())
+  fullName     String
+  designation  String
+  photoPath    String?
+  shortBio     String?
+  fullBio      String?
+  message      String
+  messageTitle String?
+  displayOrder Int      @default(0)
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isVisible, displayOrder])
+}
+
+model IdCard {
+  id                String     @id @default(cuid())
+  karyakartaId      String     @unique
+  storageKey        String
+  mimeType          String
+  sizeBytes         Int
+  uploadedByAdminId String?
+  uploadedAt        DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  karyakarta        Karyakarta @relation(fields: [karyakartaId], references: [id], onDelete: Cascade)
+  uploadedByAdmin   Admin?     @relation(fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id         String         @id @default(cuid())
+  actorType  AuditActorType
+  actorId    String?
+  actorLabel String?
+  action     String
+  regNo      String?
+  entityId   String?
+  result     AuditResult
+  ip         String?
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([actorType, actorId])
+  @@index([regNo])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Karyakarta {
@@ -76,10 +138,18 @@ model Karyakarta {
   zone        String?
   district    String?
   photoUrl    String?
+  photoPath     String?
+  passwordHash  String?
+  dateOfBirth   DateTime?        @db.Date
+  address       String?
+  joiningDate   DateTime?        @db.Date
+  allowSelfEdit Boolean          @default(false)
+  lastLoginAt   DateTime?
   status      KaryakartaStatus @default(PENDING)
   approvedAt  DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  idCard      IdCard?
 
   @@index([regNo])
   @@index([phone])
