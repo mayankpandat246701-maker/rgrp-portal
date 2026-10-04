@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { leadershipMessageSchema } from "@/lib/leadership-message-validation";
@@ -57,6 +58,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
 
     if (!updated) return errorResponse("संदेश नहीं मिला।", 404);
+    revalidatePath("/");
     return Response.json(
       { success: true, data: updated },
       { headers: { "Cache-Control": "no-store" } },
@@ -101,6 +103,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     });
 
     if (!deleted) return errorResponse("संदेश नहीं मिला।", 404);
+    revalidatePath("/");
     return Response.json(
       { success: true },
       { headers: { "Cache-Control": "no-store" } },

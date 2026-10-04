@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { leadershipMessageSchema } from "@/lib/leadership-message-validation";
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       return created;
     });
 
+    revalidatePath("/");
     return Response.json(
       { success: true, data: message },
       { status: 201, headers: { "Cache-Control": "no-store" } },

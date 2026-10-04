@@ -4,7 +4,6 @@ import { ServicesSection } from "@/components/home/services-section";
 import { SanghSection } from "@/components/home/sangh-section";
 import { ActivitiesSection } from "@/components/home/activities-section";
 import { ContactSection } from "@/components/home/contact-section";
-import { LeadershipMessagesSection } from "@/components/public/leadership-messages-section";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -27,10 +26,9 @@ export default async function Home() {
       <HeroSection />
       <IntroSection />
       <ServicesSection />
-      <SanghSection />
+      <SanghSection messages={leadershipMessages} />
       <ActivitiesSection />
       <ContactSection />
-      <LeadershipMessagesSection messages={leadershipMessages} />
     </>
   );
 }
