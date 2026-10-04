@@ -2,48 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
-const strongSecret = z
-  .string()
-  .min(32)
-  .refine((value) => new Set(value).size >= 16);
-
-const productionEnvironmentSchema = z
-  .object({
-    DATABASE_URL: z.string().min(1),
-    DIRECT_URL: z.string().min(1),
-    AUTH_SECRET: strongSecret,
-    ADMIN_BOOTSTRAP_EMAIL: z.string().email(),
-    ADMIN_BOOTSTRAP_PASSWORD: z
-      .string()
-      .min(16)
-      .refine((value) => new Set(value).size >= 8),
-    DOCUMENT_ENCRYPTION_KEY: strongSecret,
-    QR_SIGNING_SECRET: strongSecret,
-    APP_BASE_URL: z.string().url().startsWith("https://"),
-    STORAGE_PROVIDER: z.literal("supabase"),
-    SUPABASE_URL: z.string().url().startsWith("https://"),
-    SUPABASE_SECRET_KEY: z.string().min(1),
-    SUPABASE_STORAGE_BUCKET: z.string().min(1),
-    RATE_LIMIT_PROVIDER: z.literal("upstash"),
-    UPSTASH_REDIS_REST_URL: z.string().url().startsWith("https://"),
-    UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
-    NODE_ENV: z.literal("production"),
-  })
-  .superRefine((environment, context) => {
-    const secrets = [
-      environment.AUTH_SECRET,
-      environment.DOCUMENT_ENCRYPTION_KEY,
-      environment.QR_SIGNING_SECRET,
-    ];
-
-    if (new Set(secrets).size !== secrets.length) {
-      context.addIssue({
-        code: "custom",
-        message: "Secrets must be independent.",
-        path: ["AUTH_SECRET"],
-      });
-    }
-  });
+import { parseProductionEnvironment } from "./server-env-validation";
 
 const developmentEnvironmentSchema = z.object({
   DATABASE_URL: z.string().min(1),
@@ -65,14 +24,8 @@ const developmentEnvironmentSchema = z.object({
 });
 
 export type ServerEnvironment =
-  | z.infer<typeof productionEnvironmentSchema>
+  | ReturnType<typeof parseProductionEnvironment>
   | z.infer<typeof developmentEnvironmentSchema>;
-
-function configurationError(): Error {
-  return new Error(
-    "Production server configuration is invalid. Set all required server environment variables and use secrets of at least 32 characters.",
-  );
-}
 
 function getEnvironmentValues() {
   return {
@@ -99,13 +52,7 @@ export function getServerEnv(): ServerEnvironment {
   const values = getEnvironmentValues();
 
   if (process.env.NODE_ENV === "production") {
-    const result = productionEnvironmentSchema.safeParse(values);
-
-    if (!result.success) {
-      throw configurationError();
-    }
-
-    return result.data;
+    return parseProductionEnvironment(values);
   }
 
   const result = developmentEnvironmentSchema.safeParse(values);
@@ -122,9 +69,5 @@ export function validateProductionEnvironment(): void {
     return;
   }
 
-  const result = productionEnvironmentSchema.safeParse(getEnvironmentValues());
-
-  if (!result.success) {
-    throw configurationError();
-  }
+  parseProductionEnvironment(getEnvironmentValues());
 }
