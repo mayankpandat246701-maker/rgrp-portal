@@ -22,10 +22,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Rashtriya Gau Raksha Parishad | RGRP Portal",
-    template: "%s | RGRP Portal",
-  },
+  title: { default: "राष्ट्रीय गौ रक्षा परिषद", template: "%s | राष्ट्रीय गौ रक्षा परिषद" },
   description:
     "राष्ट्रीय गौ रक्षा परिषद (RGRP India) — गौ सेवा, संरक्षण और जन जागरण के लिए समर्पित संगठन। कार्यकर्ता आवेदन, सत्यापन और संघ के संदेश।",
 };
@@ -37,7 +34,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en-IN"
+      lang="hi-IN"
       className={`${hind.variable} ${notoSerifDevanagari.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}
     >
       <body className="flex min-h-full flex-col">

@@ -15,6 +15,22 @@ const validMessage = {
 test("accepts valid leadership message fields", () => {
   const result = leadershipMessageSchema.parse(validMessage);
   assert.equal(result.portraitUrl, null);
+  assert.equal(result.showOnHomepage, true);
+  assert.equal(result.displayOrder, 0);
+});
+
+test("normalizes homepage ordering and optional territory fields", () => {
+  const result = leadershipMessageSchema.parse({
+    ...validMessage,
+    sortOrder: 7,
+    showOnHomepage: false,
+    state: " Rajasthan ",
+  });
+  assert.equal(result.displayOrder, 7);
+  assert.equal(result.sortOrder, 7);
+  assert.equal(result.showOnHomepage, false);
+  assert.equal(result.state, "Rajasthan");
+  assert.equal(result.district, null);
 });
 
 test("rejects non-HTTPS portrait URLs", () => {

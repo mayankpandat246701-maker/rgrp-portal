@@ -2,6 +2,11 @@ import { randomInt } from "node:crypto";
 import { KaryakartaApplicationStatus, Prisma } from "@prisma/client";
 import { karyakartaApplicationSchema } from "@/lib/schemas/karyakarta-application";
 import { prisma } from "@/lib/prisma";
+import {
+  checkJoinApplicationRateLimit,
+  isJoinApplicationRateLimitAvailable,
+} from "@/lib/rate-limit/join-application";
+import type { RateLimitResult } from "@/lib/rate-limit/types";
 
 const MAX_REQUEST_SIZE = 32 * 1024;
 const INVALID_APPLICATION_MESSAGE = "कृपया सभी आवश्यक जानकारी सही भरें।";
@@ -21,6 +26,10 @@ const UNAVAILABLE_PRISMA_CODES = new Set([
   "P2037",
 ]);
 
+function requestIp(request: Request): string {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim().slice(0, 64) || "unknown";
+}
+
 function createApplicationReference(): string {
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const randomNumber = randomInt(10_000, 100_000);
@@ -33,6 +42,38 @@ export async function POST(request: Request) {
     return Response.json(
       { success: false, error: { message: INVALID_APPLICATION_MESSAGE } },
       { status: 400 },
+    );
+  }
+  if (!isJoinApplicationRateLimitAvailable()) {
+    return Response.json(
+      { success: false, error: { message: SERVICE_UNAVAILABLE_MESSAGE } },
+      { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+    );
+  }
+  let rateLimit: RateLimitResult;
+  try {
+    rateLimit = await checkJoinApplicationRateLimit(requestIp(request));
+  } catch {
+    console.error(JSON.stringify({
+      event: "karyakarta_application_rate_limit_failed",
+      route: "/api/karyakarta/apply",
+      code: "KARYAKARTA_APPLICATION_RATE_LIMIT_FAILED",
+    }));
+    return Response.json(
+      { success: false, error: { message: SERVICE_UNAVAILABLE_MESSAGE } },
+      { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+    );
+  }
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { success: false, error: { message: "बहुत अधिक आवेदन प्रयास हुए हैं। कृपया कुछ देर बाद फिर प्रयास करें।" } },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+          "Cache-Control": "no-store",
+        },
+      },
     );
   }
 
@@ -61,7 +102,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const application = parsed.data;
+  if (parsed.data.website.trim()) {
+    return Response.json(
+      { success: false, error: { message: INVALID_APPLICATION_MESSAGE } },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const application = { ...parsed.data };
+  Reflect.deleteProperty(application, "consent");
+  Reflect.deleteProperty(application, "website");
   const dateOfBirth = new Date(`${application.dateOfBirth}T00:00:00.000Z`);
 
   for (let attempt = 0; attempt < MAX_REFERENCE_ATTEMPTS; attempt += 1) {

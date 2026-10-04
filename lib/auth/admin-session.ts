@@ -10,6 +10,8 @@ export type AdminSessionPayload = {
   name: string;
   email: string;
   role: AdminRole;
+  assignedState?: string | null;
+  assignedDistrict?: string | null;
 };
 
 const SESSION_COOKIE_NAME = "rgrp_admin_session";
@@ -19,7 +21,17 @@ const verifiedSessionSchema = z.object({
   sub: z.string().min(1),
   name: z.string(),
   email: z.string().email(),
-  role: z.enum(["SUPER_ADMIN", "NATIONAL_ADMIN", "CONTENT_ADMIN", "VIEWER"]),
+  role: z.enum([
+    "SUPER_ADMIN",
+    "NATIONAL_ADMIN",
+    "STATE_ADMIN",
+    "DISTRICT_ADMIN",
+    "CONTENT_ADMIN",
+    "CONTENT_EDITOR",
+    "VIEWER",
+  ]),
+  assignedState: z.string().nullable().optional(),
+  assignedDistrict: z.string().nullable().optional(),
 });
 
 function getAuthSecret(): Uint8Array {
@@ -48,6 +60,8 @@ export async function createAdminSession(
     name: admin.name,
     email: admin.email,
     role: admin.role,
+    assignedState: admin.assignedState ?? null,
+    assignedDistrict: admin.assignedDistrict ?? null,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(admin.id)
@@ -80,6 +94,8 @@ export async function verifyAdminSession(): Promise<AdminSessionPayload | null> 
       name: result.data.name,
       email: result.data.email,
       role: result.data.role,
+      assignedState: result.data.assignedState ?? null,
+      assignedDistrict: result.data.assignedDistrict ?? null,
     };
   } catch {
     return null;

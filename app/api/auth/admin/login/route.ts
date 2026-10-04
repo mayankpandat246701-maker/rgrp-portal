@@ -82,6 +82,8 @@ export async function POST(request: Request) {
       email: true,
       passwordHash: true,
       role: true,
+      assignedState: true,
+      assignedDistrict: true,
     },
   });
 
@@ -106,6 +108,8 @@ export async function POST(request: Request) {
     name: admin.name,
     email: admin.email,
     role: admin.role,
+    assignedState: admin.assignedState,
+    assignedDistrict: admin.assignedDistrict,
   });
 
   return Response.json({ success: true });

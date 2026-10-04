@@ -19,6 +19,7 @@ type PageProps = {
 export default async function VerifyDocumentsPage({ params }: PageProps) {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
+  if (admin.role !== "SUPER_ADMIN") redirect("/admin/dashboard");
 
   const { id } = await params;
   const application = await prisma.karyakartaApplication.findUnique({

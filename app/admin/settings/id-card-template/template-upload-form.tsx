@@ -38,7 +38,7 @@ export function TemplateUploadForm({
         throw new Error("टेम्पलेट अपलोड नहीं हो सका। फ़ाइल जाँचकर फिर प्रयास करें।");
       }
       form.reset();
-      setMessage("नया ID कार्ड टेम्पलेट सक्रिय कर दिया गया है।");
+      setMessage("पहचान पत्र का नया टेम्पलेट सक्रिय कर दिया गया है।");
       router.refresh();
     } catch (error) {
       setIsError(true);
@@ -54,7 +54,7 @@ export function TemplateUploadForm({
 
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-bold text-stone-950">ID कार्ड टेम्पलेट</h2>
+      <h2 className="text-lg font-bold text-stone-950">पहचान पत्र टेम्पलेट</h2>
       <p className="mt-2 text-sm leading-6 text-stone-600">
         PNG या JPEG इमेज, अधिकतम 5 MB। नया टेम्पलेट पुराने सक्रिय टेम्पलेट को
         बदल देगा।

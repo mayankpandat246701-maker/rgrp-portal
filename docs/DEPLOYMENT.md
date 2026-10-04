@@ -19,9 +19,93 @@ Configure these server-side environment-variable names in the hosting platform. 
 - `DOCUMENT_ENCRYPTION_KEY`
 - `QR_SIGNING_SECRET`
 - `APP_BASE_URL`
+- `STORAGE_PROVIDER`
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY`
+- `SUPABASE_STORAGE_BUCKET`
+- `RATE_LIMIT_PROVIDER`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 - `NODE_ENV`
 
-The production server validates configuration at startup and fails without printing which secret is missing. Secrets must be strong and unique for this application. `APP_BASE_URL` must use HTTPS. Do not put real values in source control or deployment logs.
+The production server validates configuration at startup, fails closed, and reports only invalid or missing variable names—never their values. Secrets must be strong and unique for this application. `APP_BASE_URL` must use HTTPS. Do not put real values in source control or deployment logs.
+
+Use `STORAGE_PROVIDER=supabase` with a private Supabase Storage bucket for production files. Use `RATE_LIMIT_PROVIDER=upstash` with the Upstash REST credentials for shared production rate limiting. Do not make the storage bucket public.
+
+## Pending additive migration
+
+Both migrations below are pending and must be reviewed and applied in timestamp order from a controlled release environment. Do not use `prisma migrate dev` against production. Application code is not a substitute for these migrations; the affected routes require the schema to be deployed first.
+
+- `20261004170000_add_karyakarta_directory_and_official_links` adds Karyakarta directory and registration fields, official links, verification logs, and Admin territory assignments. It preserves each existing Karyakarta row. The slug backfill uses the normalized registration number or the nonblank fallback `karyakarta`, followed by the hex-encoded full Karyakarta ID so slugs are deterministic and unique even when registration values normalize identically or IDs share a six-character prefix. Missing or whitespace-only legacy registration numbers receive a deterministic `LEGACY-MISSING-<hex-id>` registration-card number with `PENDING` status; they are never promoted to active. Duplicate nonblank legacy registration numbers or a placeholder collision stop the migration with an explicit error.
+- `20261004191000_expand_portal_content_and_certificates` adds News, Ground Activity, site-logo settings, joining certificates, certificate verification logs, and appointment/emergency-visibility fields. It contains additive table/column/index/constraint creation only.
+
+Before applying the first migration, run this read-only PostgreSQL preflight against the target database. It reports missing/blank registration values, exact duplicate registration numbers, values that normalize to a blank slug component, duplicates of the old exact slug expression, and IDs sharing the same first six characters. Review any duplicate nonblank registration number before proceeding; the migration intentionally stops rather than choosing which legacy number to preserve.
+
+```sql
+WITH source AS (
+  SELECT
+    "id",
+    "regNo",
+    trim(both '-' from regexp_replace(lower("regNo"), '[^a-z0-9]+', '-', 'g')) AS normalized_reg_no,
+    trim(both '-' from regexp_replace(lower("regNo"), '[^a-z0-9]+', '-', 'g'))
+      || '-' || left("id", 6) AS old_generated_slug
+  FROM "Karyakarta"
+),
+issues AS (
+  SELECT 'NULL registration number' AS issue, '<NULL>' AS value, count(*) AS affected_rows
+  FROM source
+  WHERE "regNo" IS NULL
+  HAVING count(*) > 0
+
+  UNION ALL
+
+  SELECT 'Blank/whitespace registration number', '<blank>', count(*)
+  FROM source
+  WHERE "regNo" IS NOT NULL
+    AND regexp_replace("regNo", '[[:space:]]', '', 'g') = ''
+  HAVING count(*) > 0
+
+  UNION ALL
+
+  SELECT 'Duplicate registration number', "regNo", count(*)
+  FROM source
+  WHERE "regNo" IS NOT NULL
+    AND regexp_replace("regNo", '[[:space:]]', '', 'g') <> ''
+  GROUP BY "regNo"
+  HAVING count(*) > 1
+
+  UNION ALL
+
+  SELECT 'Registration number normalizes to blank slug component', "regNo", count(*)
+  FROM source
+  WHERE "regNo" IS NOT NULL AND normalized_reg_no = ''
+  GROUP BY "regNo"
+
+  UNION ALL
+
+  SELECT 'Duplicate old generated slug expression',
+    COALESCE(old_generated_slug, '<NULL>'), count(*)
+  FROM source
+  GROUP BY old_generated_slug
+  HAVING count(*) > 1
+
+  UNION ALL
+
+  SELECT 'Karyakarta IDs share their first six characters', left("id", 6), count(*)
+  FROM source
+  GROUP BY left("id", 6)
+  HAVING count(*) > 1
+)
+SELECT issue, value, affected_rows
+FROM issues
+ORDER BY issue, value;
+```
+
+An empty result means none of the listed conditions were found. The first migration handles missing/blank registration numbers without deleting Karyakartas or creating active cards for placeholder numbers. It aborts if duplicate nonblank registration numbers exist, so correct those records under an approved data-maintenance plan and rerun the preflight before migration.
+
+Review the complete SQL for both migrations and approve it before running `npx prisma migrate deploy`. Apply neither migration until preflight results and the migration SQL are reviewed.
+
+Joining certificates use the Noto Sans Devanagari font package, embed the font in generated PDFs, and store PDFs encrypted in the configured private storage provider. Certificate download is restricted to authorized administrators until member authentication is implemented.
 
 ## Deploy
 
@@ -33,6 +117,7 @@ npx prisma migrate deploy
 npx prisma generate
 npm run lint
 npx tsc --noEmit
+npm test
 npx prisma validate
 npm run build
 npm run start
@@ -43,9 +128,9 @@ Terminate TLS at a trusted hosting proxy and configure it to overwrite (not pass
 
 ## Private files and rate limiting
 
-Encrypted local filesystem storage is for development only. Production uploads and private-file reads are blocked because ephemeral or instance-local disks can lose sensitive documents, expose files across deployments, and are not shared safely between instances. The application deliberately returns a generic service-unavailable response until a production private object-storage provider is implemented and configured. Do not accept real applicant documents before then.
+Encrypted local filesystem storage is for development only. Production private-file uploads and reads require the configured Supabase provider and a private bucket; local or missing storage configuration is not a safe production substitute. Verify object privacy, key access, backup/retention policy, and successful encrypted upload/read/delete tests before accepting real documents.
 
-The current in-memory rate limiter is development-only. It cannot coordinate counters across processes or hosting instances. Before production traffic is enabled, integrate a shared store such as Upstash Redis and configure it behind the existing rate-limiter interface. Until then, rate-limited production endpoints fail closed with a generic response.
+The in-memory rate limiter is development-only. It cannot coordinate counters across processes or hosting instances. Production rate-limited endpoints require the shared Upstash provider; they fail closed when it is missing or unavailable.
 
 The next storage implementation must keep objects private, encrypt at rest and in transit, enforce least-privilege access, support safe retention/deletion, and serve files only through authenticated application endpoints. Do not make the bucket or object URLs public.
 
@@ -70,6 +155,9 @@ If a signing or encryption secret may be exposed, restrict access and preserve r
 - [ ] Complete security and privacy review, including retention, deletion, access, and breach-response procedures.
 - [ ] Deploy and test a private production object-storage provider; confirm local storage remains disabled.
 - [ ] Configure and test shared production rate limiting.
+- [ ] Review and apply the approved additive Prisma migration from a controlled release environment.
+- [ ] Verify Hindi certificate PDF font rendering, Admin-only download, reissue/revocation history, and public verification using synthetic member data.
+- [ ] Verify emergency-hidden Karyakarta profiles, photos, IDs, and certificates are not exposed in public routes.
 - [ ] Validate TLS, production headers, backup restoration, and alerting.
 - [ ] Verify admin roles, session invalidation, audit visibility, and least-privilege database/storage access.
 - [ ] Test upload size/type/signature validation and authenticated file previews with synthetic documents.

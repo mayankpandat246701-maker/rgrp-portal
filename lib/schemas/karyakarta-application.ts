@@ -94,6 +94,8 @@ export const karyakartaApplicationSchema = z
     joiningReason: optionalTextField(2000),
     socialMediaLinks: optionalSocialMediaLinks,
     referenceBy: optionalTextField(150),
+    consent: z.literal(true),
+    website: z.string().max(200).optional().default(""),
   })
   .strict();
 

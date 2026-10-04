@@ -1,15 +1,15 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import {
+  canManageLeadership,
+  canPublishContent,
+} from "@/lib/auth/admin-permissions";
 import { leadershipMessageSchema } from "@/lib/leadership-message-validation";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
-
-function hasManagementRole(role: string): boolean {
-  return role === "SUPER_ADMIN" || role === "CONTENT_ADMIN";
-}
 
 function errorResponse(error: string, status: number): Response {
   return Response.json(
@@ -21,7 +21,7 @@ function errorResponse(error: string, status: number): Response {
 export async function PATCH(request: Request, context: RouteContext) {
   const admin = await requireAdmin();
   if (!admin) return errorResponse("अनधिकृत अनुरोध।", 401);
-  if (!hasManagementRole(admin.role)) {
+  if (!canManageLeadership(admin.role)) {
     return errorResponse("इस कार्रवाई की अनुमति नहीं है।", 403);
   }
 
@@ -37,9 +37,43 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) {
     return errorResponse("कृपया सभी विवरण सही भरें।", 400);
   }
+  if (!canPublishContent(admin.role)) {
+    const current = await prisma.leadershipMessage.findUnique({
+      where: { id },
+      select: { id: true, isPublished: true },
+    });
+    if (!current) return errorResponse("संदेश नहीं मिला।", 404);
+    if (current.isPublished !== parsed.data.isPublished) {
+      return errorResponse("प्रकाशित स्थिति बदलने की अनुमति नहीं है।", 403);
+    }
+  }
+  if (
+    parsed.data.isPublished &&
+    parsed.data.showOnHomepage &&
+    (await prisma.leadershipMessage.count({
+      where: {
+        isPublished: true,
+        showOnHomepage: true,
+        id: { not: id },
+      },
+    })) >= 12
+  ) {
+    return errorResponse("होमपेज पर अधिकतम 12 मुख्य व्यक्ति चुने जा सकते हैं।", 409);
+  }
 
   try {
     const updated = await prisma.$transaction(async (transaction) => {
+      const before = await transaction.leadershipMessage.findUnique({
+        where: { id },
+        select: {
+          isPublished: true,
+          showOnHomepage: true,
+          displayOrder: true,
+          state: true,
+          district: true,
+        },
+      });
+      if (!before) return null;
       const result = await transaction.leadershipMessage.updateMany({
         where: { id },
         data: parsed.data,
@@ -52,6 +86,16 @@ export async function PATCH(request: Request, context: RouteContext) {
           action: "LEADERSHIP_MESSAGE_UPDATED",
           entity: "LeadershipMessage",
           entityId: id,
+          metadata: {
+            before,
+            after: {
+              isPublished: parsed.data.isPublished,
+              showOnHomepage: parsed.data.showOnHomepage,
+              displayOrder: parsed.data.displayOrder,
+              state: parsed.data.state,
+              district: parsed.data.district,
+            },
+          },
         },
       });
       return transaction.leadershipMessage.findUnique({ where: { id } });
@@ -59,6 +103,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (!updated) return errorResponse("संदेश नहीं मिला।", 404);
     revalidatePath("/");
+    revalidatePath("/saksham-karyakarta");
     return Response.json(
       { success: true, data: updated },
       { headers: { "Cache-Control": "no-store" } },
@@ -78,7 +123,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   const admin = await requireAdmin();
   if (!admin) return errorResponse("अनधिकृत अनुरोध।", 401);
-  if (!hasManagementRole(admin.role)) {
+  if (!canManageLeadership(admin.role)) {
     return errorResponse("इस कार्रवाई की अनुमति नहीं है।", 403);
   }
 
@@ -86,10 +131,18 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   try {
     const deleted = await prisma.$transaction(async (transaction) => {
+      const current = await transaction.leadershipMessage.findUnique({
+        where: { id },
+        select: { id: true, isPublished: true },
+      });
+      if (!current) return "missing" as const;
+      if (!canPublishContent(admin.role) && current.isPublished) {
+        return "forbidden" as const;
+      }
       const result = await transaction.leadershipMessage.deleteMany({
         where: { id },
       });
-      if (result.count === 0) return false;
+      if (result.count === 0) return "missing" as const;
 
       await transaction.adminActivity.create({
         data: {
@@ -99,11 +152,15 @@ export async function DELETE(_request: Request, context: RouteContext) {
           entityId: id,
         },
       });
-      return true;
+      return "deleted" as const;
     });
 
-    if (!deleted) return errorResponse("संदेश नहीं मिला।", 404);
+    if (deleted === "missing") return errorResponse("संदेश नहीं मिला।", 404);
+    if (deleted === "forbidden") {
+      return errorResponse("प्रकाशित संदेश हटाने की अनुमति नहीं है।", 403);
+    }
     revalidatePath("/");
+    revalidatePath("/saksham-karyakarta");
     return Response.json(
       { success: true },
       { headers: { "Cache-Control": "no-store" } },

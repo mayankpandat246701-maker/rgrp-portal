@@ -5,21 +5,29 @@ import { useRef, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { GlassLink } from "@/components/ui/glass-button";
 import { SoundToggle } from "@/components/layout/sound-toggle";
+import { OrganizationLogo } from "@/components/layout/organization-logo";
+import { hi } from "@/lib/i18n/hi";
 
 const primaryLinks = [
-  { href: "/", label: "Home", hindi: "मुख्य पृष्ठ" },
-  { href: "/about", label: "About", hindi: "परिचय" },
-  { href: "/#sangh", label: "Sangh", hindi: "संघ" },
-  { href: "/#activities", label: "Activities", hindi: "गतिविधियाँ" },
-  { href: "/#contact", label: "Contact", hindi: "संपर्क" },
+  { href: "/", label: hi.navigation.home },
+  { href: "/about", label: hi.navigation.about },
+  { href: "/#sangh", label: hi.navigation.sangh },
+  { href: "/#activities", label: hi.navigation.activities },
+  { href: "/#contact", label: hi.navigation.contact },
 ];
 
 const portalLinks = [
-  { href: "/application-status", label: "आवेदन स्थिति देखें" },
-  { href: "/karyakarta/upload-documents", label: "कार्यकर्ता दस्तावेज़ अपलोड · Upload Documents" },
+  { href: "/application-status", label: hi.navigation.applicationStatus },
+  { href: "/saksham-karyakarta", label: hi.navigation.karyakartas },
+  { href: "/verify-id", label: hi.navigation.verifyId },
+  { href: "/verify-certificate", label: hi.navigation.verifyCertificate },
+  { href: "/samachar", label: "समाचार" },
+  { href: "/hamare-karya", label: "जमीनी कार्य" },
+  { href: "/official-links", label: hi.navigation.officialLinks },
+  { href: "/karyakarta/upload-documents", label: "कार्यकर्ता दस्तावेज़ अपलोड करें" },
   { href: "/verify-qr", label: "QR सत्यापन" },
-  { href: "/karyakarta/login", label: "Karyakarta Login" },
-  { href: "/admin/login", label: "Admin Login / एडमिन लॉगिन" },
+  { href: "/karyakarta/login", label: "कार्यकर्ता पोर्टल प्रवेश" },
+  { href: "/admin/login", label: hi.navigation.adminLogin },
 ];
 
 const navLinkClass =
@@ -37,12 +45,7 @@ export function SiteHeader() {
           href="/"
           className="flex items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-700"
         >
-          <span
-            aria-hidden
-            className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-saffron-500 to-saffron-700 font-serif text-lg font-bold text-white shadow-md"
-          >
-            गौ
-          </span>
+          <OrganizationLogo />
           <span className="leading-tight">
             <span className="block font-serif text-base font-bold text-cocoa-900">राष्ट्रीय गौ रक्षा परिषद</span>
             <span className="block text-xs font-medium tracking-wide text-cocoa-700">RGRP India</span>
@@ -57,7 +60,7 @@ export function SiteHeader() {
           ))}
           <details ref={portalRef} className="group relative">
             <summary className={`${navLinkClass} flex cursor-pointer list-none items-center gap-1 [&::-webkit-details-marker]:hidden`}>
-              Portal
+              {hi.navigation.portal}
               <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
             </summary>
             <div className="glass-strong absolute right-0 mt-2 w-72 rounded-2xl p-2">
@@ -77,8 +80,8 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2">
           <SoundToggle />
-          <GlassLink href="/join" variant="primary" className="hidden md:inline-flex">
-            कार्यकर्ता आवेदन
+          <GlassLink href="/join-us" variant="primary" className="hidden md:inline-flex">
+            {hi.navigation.join}
           </GlassLink>
           <button
             type="button"
@@ -108,13 +111,12 @@ export function SiteHeader() {
                   className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-medium text-cocoa-900 hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-saffron-700"
                 >
                   {link.label}
-                  <span className="text-sm text-cocoa-700">{link.hindi}</span>
                 </Link>
               </li>
             ))}
           </ul>
           <p className="mt-3 border-t border-saffron-200 px-3 pt-3 text-xs font-semibold tracking-wider text-saffron-700 uppercase">
-            Portal
+            {hi.navigation.portal}
           </p>
           <ul className="mt-1 grid gap-1">
             {portalLinks.map((link) => (
@@ -129,8 +131,8 @@ export function SiteHeader() {
               </li>
             ))}
           </ul>
-          <GlassLink href="/join" variant="primary" className="mt-3 w-full md:hidden" onClick={() => setMobileOpen(false)}>
-            कार्यकर्ता आवेदन
+          <GlassLink href="/join-us" variant="primary" className="mt-3 w-full md:hidden" onClick={() => setMobileOpen(false)}>
+            {hi.navigation.join}
           </GlassLink>
         </nav>
       )}

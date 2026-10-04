@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LeadershipMessageManager } from "@/app/admin/leadership-messages/leadership-message-manager";
+import { canManageLeadership } from "@/lib/auth/admin-permissions";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { prisma } from "@/lib/prisma";
 
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 export default async function LeadershipMessagesPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
-  if (admin.role !== "SUPER_ADMIN" && admin.role !== "CONTENT_ADMIN") {
+  if (!canManageLeadership(admin.role)) {
     redirect("/admin/dashboard");
   }
 
@@ -27,6 +28,10 @@ export default async function LeadershipMessagesPage() {
       message: true,
       portraitUrl: true,
       sortOrder: true,
+      displayOrder: true,
+      showOnHomepage: true,
+      state: true,
+      district: true,
       isPublished: true,
       createdAt: true,
     },

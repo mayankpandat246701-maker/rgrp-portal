@@ -45,8 +45,15 @@ export function isPrivateStorageAvailable(): boolean {
 }
 
 export function createStorageKey(
-  directory: "applications" | "templates" | "qr",
-  fileExtension: "jpg" | "png" | "pdf",
+  directory:
+    | "applications"
+    | "templates"
+    | "qr"
+    | "profiles"
+    | "content"
+    | "branding"
+    | "certificates",
+  fileExtension: "jpg" | "png" | "webp" | "pdf",
   encrypted = false,
   applicationReference?: string,
 ): string {

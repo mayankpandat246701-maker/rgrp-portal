@@ -24,7 +24,7 @@ export function AdminLoginForm() {
     const nextErrors: Record<string, string> = {};
 
     if (!email) {
-      nextErrors.email = "कृपया Admin ईमेल दर्ज करें।";
+      nextErrors.email = "कृपया प्रशासक का ईमेल दर्ज करें।";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       nextErrors.email = "कृपया सही ईमेल पता दर्ज करें।";
     }
@@ -55,8 +55,8 @@ export function AdminLoginForm() {
 
       setNotice(
         response.status === 429
-          ? "कई प्रयास किए गए हैं। कृपया कुछ देर बाद फिर कोशिश करें। Too many attempts; try again later."
-          : "ईमेल या पासवर्ड अमान्य है। Invalid email or password.",
+          ? "कई प्रयास किए गए हैं। कृपया कुछ देर बाद फिर कोशिश करें।"
+          : "ईमेल या पासवर्ड अमान्य है।",
       );
     } catch {
       setNotice("लॉगिन अभी उपलब्ध नहीं है। कृपया फिर से प्रयास करें।");
@@ -86,7 +86,7 @@ export function AdminLoginForm() {
         <FormField
           error={errors.email}
           id="email"
-          label="Admin ईमेल"
+          label="प्रशासक का ईमेल"
           required
         >
           <input
@@ -142,7 +142,7 @@ export function AdminLoginForm() {
           {isSubmitting ? "प्रवेश हो रहा है…" : "सुरक्षित लॉगिन"}
         </button>
         <p className="text-center text-xs leading-5 text-stone-500">
-          अधिकृत प्रशासनिक उपयोग के लिए בלבד
+          केवल अधिकृत प्रशासनिक उपयोग के लिए
         </p>
       </form>
 

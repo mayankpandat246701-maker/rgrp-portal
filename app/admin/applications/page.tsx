@@ -4,6 +4,7 @@ import { KaryakartaApplicationStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { ApplicationStatusBadge } from "@/components/admin/application-status-badge";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { canViewApplications } from "@/lib/auth/admin-permissions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export default async function AdminApplicationsPage({
 }: ApplicationsPageProps) {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
+  if (!canViewApplications(admin.role)) redirect("/admin/dashboard");
 
   const { status: requestedStatus } = await searchParams;
   const filter = statusOptions.some((option) => option.value === requestedStatus)

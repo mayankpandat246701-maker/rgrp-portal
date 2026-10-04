@@ -10,6 +10,10 @@ type LeadershipMessageItem = {
   message: string;
   portraitUrl: string | null;
   sortOrder: number;
+  displayOrder: number;
+  showOnHomepage: boolean;
+  state: string | null;
+  district: string | null;
   isPublished: boolean;
   createdAt: string;
 };
@@ -20,6 +24,9 @@ type Draft = {
   message: string;
   portraitUrl: string;
   sortOrder: string;
+  state: string;
+  district: string;
+  showOnHomepage: boolean;
   isPublished: boolean;
 };
 
@@ -29,6 +36,9 @@ const emptyDraft: Draft = {
   message: "",
   portraitUrl: "",
   sortOrder: "0",
+  state: "",
+  district: "",
+  showOnHomepage: true,
   isPublished: false,
 };
 
@@ -61,6 +71,14 @@ function isLeadershipMessageItem(value: unknown): value is LeadershipMessageItem
     (typeof value.portraitUrl === "string" || value.portraitUrl === null) &&
     "sortOrder" in value &&
     typeof value.sortOrder === "number" &&
+    "displayOrder" in value &&
+    typeof value.displayOrder === "number" &&
+    "showOnHomepage" in value &&
+    typeof value.showOnHomepage === "boolean" &&
+    "state" in value &&
+    (typeof value.state === "string" || value.state === null) &&
+    "district" in value &&
+    (typeof value.district === "string" || value.district === null) &&
     "isPublished" in value &&
     typeof value.isPublished === "boolean" &&
     "createdAt" in value &&
@@ -90,6 +108,9 @@ export function LeadershipMessageManager({
       message: message.message,
       portraitUrl: message.portraitUrl ?? "",
       sortOrder: String(message.sortOrder),
+      state: message.state ?? "",
+      district: message.district ?? "",
+      showOnHomepage: message.showOnHomepage,
       isPublished: message.isPublished,
     });
     setFeedback("");
@@ -110,6 +131,7 @@ export function LeadershipMessageManager({
     const payload = {
       ...draft,
       sortOrder: Number(draft.sortOrder),
+      displayOrder: Number(draft.sortOrder),
     };
 
     try {
@@ -259,6 +281,16 @@ export function LeadershipMessageManager({
             value={draft.portraitUrl}
           />
         </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-stone-800">राज्य (वैकल्पिक)</span>
+            <input className="w-full rounded-xl border border-stone-300 px-3 py-2.5" maxLength={120} onChange={(event) => setDraft({ ...draft, state: event.target.value })} value={draft.state} />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-semibold text-stone-800">जिला (वैकल्पिक)</span>
+            <input className="w-full rounded-xl border border-stone-300 px-3 py-2.5" maxLength={120} onChange={(event) => setDraft({ ...draft, district: event.target.value })} value={draft.district} />
+          </label>
+        </div>
         <div className="flex flex-wrap items-center gap-5">
           <label className="flex items-center gap-2 text-sm font-medium">
             क्रम
@@ -275,6 +307,16 @@ export function LeadershipMessageManager({
           </label>
           <label className="flex items-center gap-2 text-sm font-medium">
             <input
+              checked={draft.showOnHomepage}
+              onChange={(event) =>
+                setDraft({ ...draft, showOnHomepage: event.target.checked })
+              }
+              type="checkbox"
+            />
+            होमपेज पर मुख्य व्यक्ति के रूप में दिखाएँ
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
               checked={draft.isPublished}
               onChange={(event) =>
                 setDraft({ ...draft, isPublished: event.target.checked })
@@ -284,6 +326,7 @@ export function LeadershipMessageManager({
             प्रकाशित करें
           </label>
         </div>
+        <p className="text-xs text-stone-500">छोटी संख्या पहले दिखाई जाती है। होमपेज पर अधिकतम 12 चयनित प्रकाशित संदेश दिखेंगे।</p>
         {feedback ? (
           <p
             className={`text-sm ${isError ? "text-red-700" : "text-emerald-800"}`}
@@ -319,6 +362,11 @@ export function LeadershipMessageManager({
         >
           सभी संदेश ({messages.length})
         </h2>
+        {messages.filter((message) => message.isPublished && message.showOnHomepage).length === 0 ? (
+          <p className="mt-3 rounded-xl border border-dashed border-stone-300 p-5 text-sm text-stone-600">
+            होमपेज के लिए अभी कोई मुख्य व्यक्ति चयनित नहीं है।
+          </p>
+        ) : null}
         <div className="mt-4 space-y-4">
           {messages.length === 0 ? (
             <p className="rounded-xl border border-dashed border-stone-300 p-6 text-sm text-stone-600">
@@ -351,7 +399,7 @@ export function LeadershipMessageManager({
                   {message.message}
                 </p>
                 <p className="mt-2 text-xs text-stone-500">
-                  प्रदर्शन क्रम: {message.sortOrder}
+                  प्रदर्शन क्रम: {message.displayOrder} · {message.showOnHomepage ? "होमपेज चयनित" : "होमपेज से छिपा"}
                 </p>
                 <div className="mt-4 flex gap-2">
                   <button

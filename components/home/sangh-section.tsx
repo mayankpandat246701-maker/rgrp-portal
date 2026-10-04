@@ -1,4 +1,5 @@
 import { SectionHeading } from "@/components/home/section-heading";
+import Link from "next/link";
 import {
   LeaderMessageCard,
   type Leader,
@@ -27,6 +28,14 @@ export function SanghSection({ messages }: { messages: Leader[] }) {
             संघ के मुख्य व्यक्तियों के संदेश शीघ्र प्रकाशित किए जाएँगे।
           </p>
         )}
+        <div className="mt-8 text-center">
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-800 px-5 py-3 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50"
+            href="/saksham-karyakarta"
+          >
+            सभी सक्षम कार्यकर्ता देखें
+          </Link>
+        </div>
       </div>
     </section>
   );

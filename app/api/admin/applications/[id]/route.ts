@@ -1,6 +1,7 @@
 import { AdminAuditAction, KaryakartaApplicationStatus } from "@prisma/client";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { canViewApplications } from "@/lib/auth/admin-permissions";
 import { prisma } from "@/lib/prisma";
 
 const transitionSchema = z
@@ -72,6 +73,12 @@ export async function GET(_request: Request, context: RouteContext) {
     return Response.json(
       { success: false, error: { message: "अनधिकृत अनुरोध।" } },
       { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (!canViewApplications(admin.role)) {
+    return Response.json(
+      { success: false, error: { message: "इस पृष्ठ की अनुमति नहीं है।" } },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
     );
   }
 

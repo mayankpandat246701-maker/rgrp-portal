@@ -39,25 +39,35 @@ export function JoinForm() {
     setIsSubmitting(true);
 
     const formData = new FormData(form);
-    formData.delete("consent");
     const payload = Object.fromEntries(formData.entries());
+    const requestBody = { ...payload, consent: payload.consent === "true" };
 
     try {
       const response = await fetch("/api/karyakarta/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(requestBody),
       });
       const result: unknown = await response.json();
 
       if (!response.ok || !isApplicationResponse(result)) {
-        throw new Error("Application submission failed.");
+        const message =
+          typeof result === "object" &&
+          result !== null &&
+          "error" in result &&
+          typeof result.error === "object" &&
+          result.error !== null &&
+          "message" in result.error &&
+          typeof result.error.message === "string"
+            ? result.error.message
+            : "आपका आवेदन जमा नहीं हो सका। कृपया जानकारी जाँचकर फिर प्रयास करें।";
+        throw new Error(message);
       }
 
       setApplicationReference(result.data.applicationReference);
       form.reset();
-    } catch {
-      setError("आपका आवेदन जमा नहीं हो सका। कृपया जानकारी जाँचकर फिर प्रयास करें।");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "आपका आवेदन जमा नहीं हो सका। कृपया जानकारी जाँचकर फिर प्रयास करें।");
     } finally {
       setIsSubmitting(false);
     }
@@ -83,6 +93,10 @@ export function JoinForm() {
       </div>
 
       <form className="space-y-8 p-5 sm:p-8" onSubmit={handleSubmit}>
+        <div aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">
+          <label htmlFor="website">इस खाली क्षेत्र को न भरें</label>
+          <input autoComplete="off" id="website" maxLength={200} name="website" tabIndex={-1} />
+        </div>
         <section aria-labelledby="personal-details-heading">
           <div className="mb-5">
             <h2
@@ -96,7 +110,7 @@ export function JoinForm() {
             </p>
           </div>
           <div className="grid gap-5 md:grid-cols-2">
-            <FormField id="fullName" label="पूरा नाम / Full Name" required>
+            <FormField id="fullName" label="पूरा नाम" required>
               <input
                 autoComplete="name"
                 className={inputClassName}
@@ -361,10 +375,10 @@ export function JoinForm() {
               name="consent"
               required
               type="checkbox"
+              value="true"
             />
             <span className="text-sm leading-6 text-stone-700">
-              मैं पुष्टि करता/करती हूँ कि दी गई जानकारी सही है और संगठन की
-              गोपनीयता नीति से सहमत हूँ।
+              मैं पुष्टि करता/करती हूँ कि दी गई जानकारी सही है और मैं राष्ट्रीय गौ रक्षा परिषद द्वारा संपर्क किए जाने के लिए सहमत हूँ।
               <span aria-hidden="true" className="ml-1 text-orange-700">
                 *
               </span>

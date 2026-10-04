@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "ID कार्ड टेम्पलेट",
+  title: "पहचान पत्र टेम्पलेट",
 };
 
 export default async function IdCardTemplateSettingsPage() {
@@ -32,7 +32,7 @@ export default async function IdCardTemplateSettingsPage() {
         डैशबोर्ड पर वापस जाएँ
       </Link>
       <h1 className="mt-5 text-3xl font-bold tracking-tight text-stone-950">
-        ID कार्ड सेटिंग
+        पहचान पत्र सेटिंग
       </h1>
       <div className="mt-7 grid gap-6 lg:grid-cols-2">
         <TemplateUploadForm hasActiveTemplate={Boolean(template)} />
@@ -44,7 +44,7 @@ export default async function IdCardTemplateSettingsPage() {
             <>
               <div className="mt-4 overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
                 <Image
-                  alt="सक्रिय ID कार्ड टेम्पलेट"
+                  alt="सक्रिय पहचान पत्र टेम्पलेट"
                   className="max-h-96 w-full object-contain"
                   height={600}
                   src="/api/admin/id-card-template/active"

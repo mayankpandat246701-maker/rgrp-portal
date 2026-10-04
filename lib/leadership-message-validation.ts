@@ -7,9 +7,19 @@ export const leadershipMessageSchema = z.object({
   portraitUrl: z
     .union([z.literal(""), z.string().trim().url().startsWith("https://")])
     .transform((value) => (value === "" ? null : value)),
-  sortOrder: z.number().int().min(0).max(9999),
+  state: z.string().trim().max(120).optional().nullable(),
+  district: z.string().trim().max(120).optional().nullable(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  displayOrder: z.number().int().min(0).max(9999).optional(),
+  showOnHomepage: z.boolean().default(true),
   isPublished: z.boolean(),
-});
+}).transform((value) => ({
+  ...value,
+  state: value.state || null,
+  district: value.district || null,
+  displayOrder: value.displayOrder ?? value.sortOrder ?? 0,
+  sortOrder: value.displayOrder ?? value.sortOrder ?? 0,
+}));
 
 export type LeadershipMessageInput = z.infer<
   typeof leadershipMessageSchema

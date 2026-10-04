@@ -5,6 +5,7 @@ import { ApplicationReviewActions } from "@/components/admin/application-review-
 import { ApplicationPrintButton } from "@/components/admin/application-print-button";
 import { ApplicationStatusBadge } from "@/components/admin/application-status-badge";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { canViewApplications } from "@/lib/auth/admin-permissions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export default async function AdminApplicationDetailPage({
 }: ApplicationDetailPageProps) {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
+  if (!canViewApplications(admin.role)) redirect("/admin/dashboard");
 
   const { id } = await params;
   const [application, latestDecision, activeTemplate] = await Promise.all([
@@ -168,7 +170,7 @@ export default async function AdminApplicationDetailPage({
       fields: [
         { label: "जुड़ने का कारण", value: application.joiningReason },
         {
-          label: "सोशल मीडिया लिंक (JSON)",
+          label: "सोशल मीडिया लिंक",
           value: application.socialMediaLinks,
         },
         { label: "संदर्भ", value: application.referenceBy },
@@ -282,7 +284,6 @@ export default async function AdminApplicationDetailPage({
             <h2 className="text-lg font-bold text-stone-950">
               दस्तावेज़ और पहचान पत्र
               <span className="ml-2 text-sm font-normal text-stone-500">
-                Documents &amp; ID Card
               </span>
             </h2>
             <p className="mt-2 text-sm text-stone-600">
@@ -300,7 +301,6 @@ export default async function AdminApplicationDetailPage({
               href={`/admin/applications/${encodeURIComponent(application.id)}/verify-documents`}
             >
               <span>दस्तावेज़ सत्यापित करें</span>
-              <span className="ml-2 text-xs font-normal">Review Documents</span>
             </Link>
           ) : null}
         </div>
@@ -351,7 +351,7 @@ export default async function AdminApplicationDetailPage({
         ) : (
           <p className="mt-4 text-sm text-stone-600">
             दस्तावेज़ स्थिति केवल-पठन के लिए उपलब्ध है। दस्तावेज़ समीक्षा और
-            पहचान पत्र के लिए Super Admin से संपर्क करें।
+            पहचान पत्र के लिए मुख्य प्रशासक से संपर्क करें।
           </p>
         )}
       </section>
@@ -366,7 +366,7 @@ export default async function AdminApplicationDetailPage({
         </div>
       ) : application.status === "PENDING" ? (
         <p className="no-print mt-6 rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
-          केवल Super Admin इस आवेदन की स्थिति बदल सकता है।
+          केवल मुख्य प्रशासक इस आवेदन की स्थिति बदल सकता है।
         </p>
       ) : null}
     </section>

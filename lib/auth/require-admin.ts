@@ -17,6 +17,8 @@ export async function getCurrentAdmin(): Promise<AdminSessionPayload | null> {
       name: true,
       email: true,
       role: true,
+      assignedState: true,
+      assignedDistrict: true,
     },
   });
 

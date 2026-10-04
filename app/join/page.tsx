@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function JoinPage() {
   return (
     <PageSection
-      description="Rashtriya Gau Raksha Parishad से जुड़ने के लिए अपना आवेदन भरें। सभी आवश्यक विवरण सावधानी से दर्ज करें।"
+      description="राष्ट्रीय गौ रक्षा परिषद से जुड़ने के लिए अपना आवेदन भरें। सभी आवश्यक विवरण सावधानी से दर्ज करें।"
       eyebrow="सदस्यता आवेदन"
       title="राष्ट्रीय गौ रक्षा परिषद – कार्यकर्ता पंजीकरण"
     >
