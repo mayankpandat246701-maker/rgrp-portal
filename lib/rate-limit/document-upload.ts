@@ -1,49 +1,32 @@
 import "server-only";
 
-type AttemptWindow = {
-  attempts: number;
-  expiresAt: number;
-};
+import { InMemoryRateLimiter } from "@/lib/rate-limit/in-memory-provider";
+import {
+  consumeSharedRateLimit,
+  isUpstashRateLimitAvailable,
+} from "@/lib/rate-limit/upstash-provider";
+import type { RateLimitResult } from "@/lib/rate-limit/types";
 
-type RateLimitResult = {
-  allowed: boolean;
-  retryAfterSeconds: number;
-};
+const uploadLimiter = new InMemoryRateLimiter(8, 15 * 60 * 1000);
 
-const MAX_UPLOAD_ATTEMPTS = 8;
-const WINDOW_DURATION_MS = 15 * 60 * 1000;
-const MAX_TRACKED_IPS = 10_000;
-const uploadAttempts = new Map<string, AttemptWindow>();
+function shouldUseUpstash(): boolean {
+  return process.env.RATE_LIMIT_PROVIDER?.trim().toLowerCase() === "upstash";
+}
 
-export function checkDocumentUploadRateLimit(ip: string): RateLimitResult {
-  const now = Date.now();
-  for (const [trackedIp, window] of uploadAttempts) {
-    if (window.expiresAt <= now) uploadAttempts.delete(trackedIp);
-  }
-
-  const window = uploadAttempts.get(ip);
-  if (window && window.attempts >= MAX_UPLOAD_ATTEMPTS) {
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.max(
-        1,
-        Math.ceil((window.expiresAt - now) / 1000),
-      ),
-    };
-  }
-
-  if (window) {
-    window.attempts += 1;
-  } else {
-    if (uploadAttempts.size >= MAX_TRACKED_IPS) {
-      const oldestIp = uploadAttempts.keys().next().value;
-      if (oldestIp !== undefined) uploadAttempts.delete(oldestIp);
+export async function checkDocumentUploadRateLimit(
+  ip: string,
+): Promise<RateLimitResult> {
+  if (shouldUseUpstash()) {
+    if (!isUpstashRateLimitAvailable()) {
+      return { allowed: false, retryAfterSeconds: 60 };
     }
-    uploadAttempts.set(ip, {
-      attempts: 1,
-      expiresAt: now + WINDOW_DURATION_MS,
-    });
+
+    return consumeSharedRateLimit(`upload:${ip}`, 8);
   }
 
-  return { allowed: true, retryAfterSeconds: 0 };
+  if (process.env.NODE_ENV === "production") {
+    return { allowed: false, retryAfterSeconds: 60 };
+  }
+
+  return uploadLimiter.consume(ip);
 }

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { checkApplicationStatusLookup } from "@/lib/rate-limit/application-status";
+import {
+  isRateLimitProviderAvailable,
+  rateLimitProviderUnavailableResponse,
+} from "@/lib/rate-limit/types";
 
 const lookupSchema = z
   .object({
@@ -43,7 +47,11 @@ function getRequestIp(request: Request): string {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkApplicationStatusLookup(getRequestIp(request));
+  if (!isRateLimitProviderAvailable()) {
+    return rateLimitProviderUnavailableResponse();
+  }
+
+  const rateLimit = await checkApplicationStatusLookup(getRequestIp(request));
   if (!rateLimit.allowed) {
     return Response.json(
       {
@@ -57,6 +65,7 @@ export async function POST(request: Request) {
         headers: {
           "Retry-After": String(rateLimit.retryAfterSeconds),
           "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
         },
       },
     );
@@ -68,7 +77,13 @@ export async function POST(request: Request) {
   } catch {
     return Response.json(
       { success: false, error: { message: "कृपया संदर्भ संख्या और मोबाइल दर्ज करें।" } },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      {
+        status: 400,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      },
     );
   }
 
@@ -76,7 +91,13 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return Response.json(
       { success: false, error: { message: "कृपया संदर्भ संख्या और मोबाइल दर्ज करें।" } },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      {
+        status: 400,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      },
     );
   }
 
@@ -96,12 +117,20 @@ export async function POST(request: Request) {
   if (!application) {
     return Response.json(NOT_FOUND_RESPONSE, {
       status: 404,
-      headers: { "Cache-Control": "no-store" },
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
     });
   }
 
   return Response.json(
     { success: true, data: application },
-    { headers: { "Cache-Control": "no-store" } },
+    {
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
+    },
   );
 }

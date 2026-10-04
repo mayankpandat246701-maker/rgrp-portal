@@ -17,6 +17,9 @@
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/redis": "^1.39.0",
     "@zxing/browser": "^0.2.1",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.12",

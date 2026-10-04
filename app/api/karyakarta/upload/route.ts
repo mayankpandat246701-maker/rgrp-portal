@@ -7,6 +7,11 @@ import {
 } from "@/lib/private-uploads";
 import { prisma } from "@/lib/prisma";
 import { checkDocumentUploadRateLimit } from "@/lib/rate-limit/document-upload";
+import {
+  isRateLimitProviderAvailable,
+  rateLimitProviderUnavailableResponse,
+} from "@/lib/rate-limit/types";
+import { isPrivateStorageAvailable } from "@/lib/private-uploads";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_REQUEST_SIZE = 4 * 1024 * 1024 + 32 * 1024;
@@ -102,7 +107,11 @@ async function readDocument(
 }
 
 export async function POST(request: Request) {
-  const limit = checkDocumentUploadRateLimit(getRequestIp(request));
+  if (!isRateLimitProviderAvailable() || !isPrivateStorageAvailable()) {
+    return rateLimitProviderUnavailableResponse();
+  }
+
+  const limit = await checkDocumentUploadRateLimit(getRequestIp(request));
   if (!limit.allowed) {
     return Response.json(
       { success: false, error: { message: "बहुत अधिक प्रयास किए गए। कृपया बाद में फिर प्रयास करें।" } },

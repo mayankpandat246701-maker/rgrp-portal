@@ -1,5 +1,8 @@
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { readPrivateFile } from "@/lib/private-uploads";
+import {
+  isPrivateStorageAvailable,
+  readPrivateFile,
+} from "@/lib/private-uploads";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -18,6 +21,12 @@ export async function GET(_request: Request, context: RouteContext) {
     return Response.json(
       { success: false, error: { message: "इस फ़ाइल की अनुमति नहीं है।" } },
       { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (!isPrivateStorageAvailable()) {
+    return Response.json(
+      { success: false, error: { message: "फ़ाइल सेवा अभी उपलब्ध नहीं है।" } },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
 

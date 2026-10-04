@@ -1,67 +1,60 @@
 import "server-only";
 
-type LoginAttemptWindow = {
-  attempts: number;
-  expiresAt: number;
-};
+import { InMemoryRateLimiter } from "@/lib/rate-limit/in-memory-provider";
+import {
+  checkSharedLoginFailures,
+  clearSharedLoginFailures,
+  isUpstashRateLimitAvailable,
+  recordSharedLoginFailure,
+} from "@/lib/rate-limit/upstash-provider";
+import type { RateLimitResult } from "@/lib/rate-limit/types";
 
-type RateLimitResult = {
-  allowed: boolean;
-  retryAfterSeconds: number;
-};
+const loginLimiter = new InMemoryRateLimiter(5, 15 * 60 * 1000);
 
-const MAX_FAILED_ATTEMPTS = 5;
-const WINDOW_DURATION_MS = 15 * 60 * 1000;
-const MAX_TRACKED_IPS = 10_000;
-const loginAttempts = new Map<string, LoginAttemptWindow>();
+function shouldUseUpstash(): boolean {
+  return process.env.RATE_LIMIT_PROVIDER?.trim().toLowerCase() === "upstash";
+}
 
-function removeExpiredAttempts(now: number): void {
-  for (const [ip, attemptWindow] of loginAttempts) {
-    if (attemptWindow.expiresAt <= now) {
-      loginAttempts.delete(ip);
+export async function checkAdminLoginRateLimit(
+  ip: string,
+): Promise<RateLimitResult> {
+  if (shouldUseUpstash()) {
+    if (!isUpstashRateLimitAvailable()) {
+      return { allowed: false, retryAfterSeconds: 60 };
     }
-  }
-}
 
-export function checkAdminLoginRateLimit(ip: string): RateLimitResult {
-  const now = Date.now();
-  removeExpiredAttempts(now);
-
-  const attemptWindow = loginAttempts.get(ip);
-  if (!attemptWindow || attemptWindow.attempts < MAX_FAILED_ATTEMPTS) {
-    return { allowed: true, retryAfterSeconds: 0 };
+    return checkSharedLoginFailures(ip);
   }
 
-  return {
-    allowed: false,
-    retryAfterSeconds: Math.max(
-      1,
-      Math.ceil((attemptWindow.expiresAt - now) / 1000),
-    ),
-  };
+  if (process.env.NODE_ENV === "production") {
+    return { allowed: false, retryAfterSeconds: 60 };
+  }
+
+  return loginLimiter.check(ip);
 }
 
-export function recordAdminLoginFailure(ip: string): void {
-  const now = Date.now();
-  removeExpiredAttempts(now);
-
-  const attemptWindow = loginAttempts.get(ip);
-  if (attemptWindow) {
-    attemptWindow.attempts += 1;
+export async function recordAdminLoginFailure(ip: string): Promise<void> {
+  if (shouldUseUpstash()) {
+    if (isUpstashRateLimitAvailable()) {
+      await recordSharedLoginFailure(ip);
+    }
     return;
   }
 
-  if (loginAttempts.size >= MAX_TRACKED_IPS) {
-    const oldestIp = loginAttempts.keys().next().value;
-    if (oldestIp !== undefined) loginAttempts.delete(oldestIp);
+  if (process.env.NODE_ENV !== "production") {
+    loginLimiter.recordFailure(ip);
   }
-
-  loginAttempts.set(ip, {
-    attempts: 1,
-    expiresAt: now + WINDOW_DURATION_MS,
-  });
 }
 
-export function clearAdminLoginFailures(ip: string): void {
-  loginAttempts.delete(ip);
+export async function clearAdminLoginFailures(ip: string): Promise<void> {
+  if (shouldUseUpstash()) {
+    if (isUpstashRateLimitAvailable()) {
+      await clearSharedLoginFailures(ip);
+    }
+    return;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    loginLimiter.clear(ip);
+  }
 }

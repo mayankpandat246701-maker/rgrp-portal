@@ -7,6 +7,10 @@ import {
   clearAdminLoginFailures,
   recordAdminLoginFailure,
 } from "@/lib/rate-limit/admin-login";
+import {
+  isRateLimitProviderAvailable,
+  rateLimitProviderUnavailableResponse,
+} from "@/lib/rate-limit/types";
 
 const loginSchema = z
   .object({
@@ -26,17 +30,27 @@ function getRequestIp(request: Request): string {
 }
 
 export async function POST(request: Request) {
+  if (!isRateLimitProviderAvailable()) {
+    return rateLimitProviderUnavailableResponse();
+  }
+
   const ip = getRequestIp(request);
-  const rateLimit = checkAdminLoginRateLimit(ip);
+ const rateLimit = await checkAdminLoginRateLimit(ip);
   if (!rateLimit.allowed) {
     return Response.json(
       {
         success: false,
-        error: { message: "Too many login attempts. Please try again later." },
+        error: {
+          message: "बहुत अधिक प्रयास किए गए। कृपया कुछ देर बाद फिर प्रयास करें।",
+        },
       },
       {
         status: 429,
-        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
       },
     );
   }
@@ -76,7 +90,7 @@ export async function POST(request: Request) {
     : false;
 
   if (!admin || !passwordMatches) {
-    recordAdminLoginFailure(ip);
+    await recordAdminLoginFailure(ip);
     return Response.json(
       {
         success: false,
@@ -86,7 +100,7 @@ export async function POST(request: Request) {
     );
   }
 
-  clearAdminLoginFailures(ip);
+  await clearAdminLoginFailures(ip);
   await createAdminSession({
     id: admin.id,
     name: admin.name,

@@ -1,55 +1,32 @@
 import "server-only";
 
-type AttemptWindow = {
-  count: number;
-  expiresAt: number;
-};
+import { InMemoryRateLimiter } from "@/lib/rate-limit/in-memory-provider";
+import {
+  consumeSharedRateLimit,
+  isUpstashRateLimitAvailable,
+} from "@/lib/rate-limit/upstash-provider";
+import type { RateLimitResult } from "@/lib/rate-limit/types";
 
-type LookupLimitResult = {
-  allowed: boolean;
-  retryAfterSeconds: number;
-};
+const lookupLimiter = new InMemoryRateLimiter(10, 15 * 60 * 1000);
 
-const MAX_LOOKUPS = 10;
-const WINDOW_DURATION_MS = 15 * 60 * 1000;
-const MAX_TRACKED_IPS = 10_000;
-const attemptsByIp = new Map<string, AttemptWindow>();
-
-function removeExpiredWindows(now: number): void {
-  for (const [ip, window] of attemptsByIp) {
-    if (window.expiresAt <= now) attemptsByIp.delete(ip);
-  }
+function shouldUseUpstash(): boolean {
+  return process.env.RATE_LIMIT_PROVIDER?.trim().toLowerCase() === "upstash";
 }
 
-export function checkApplicationStatusLookup(
+export async function checkApplicationStatusLookup(
   ip: string,
-): LookupLimitResult {
-  const now = Date.now();
-  removeExpiredWindows(now);
-
-  const window = attemptsByIp.get(ip);
-  if (window && window.count >= MAX_LOOKUPS) {
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.max(
-        1,
-        Math.ceil((window.expiresAt - now) / 1000),
-      ),
-    };
-  }
-
-  if (window) {
-    window.count += 1;
-  } else {
-    if (attemptsByIp.size >= MAX_TRACKED_IPS) {
-      const oldestIp = attemptsByIp.keys().next().value;
-      if (oldestIp !== undefined) attemptsByIp.delete(oldestIp);
+): Promise<RateLimitResult> {
+  if (shouldUseUpstash()) {
+    if (!isUpstashRateLimitAvailable()) {
+      return { allowed: false, retryAfterSeconds: 60 };
     }
-    attemptsByIp.set(ip, {
-      count: 1,
-      expiresAt: now + WINDOW_DURATION_MS,
-    });
+
+    return consumeSharedRateLimit(`status:${ip}`, 10);
   }
 
-  return { allowed: true, retryAfterSeconds: 0 };
+  if (process.env.NODE_ENV === "production") {
+    return { allowed: false, retryAfterSeconds: 60 };
+  }
+
+  return lookupLimiter.consume(ip);
 }

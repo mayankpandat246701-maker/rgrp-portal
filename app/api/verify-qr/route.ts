@@ -1,4 +1,4 @@
-import { jwtVerify } from "jose";
+import { jwtVerify, type JWTPayload } from "jose";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
@@ -19,12 +19,24 @@ const invalidResponse = {
   error: { message: "QR सत्यापन नहीं हो सका।" },
 };
 
-function getAuthSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret || new TextEncoder().encode(secret).byteLength < 32) {
-    throw new Error("AUTH_SECRET is not configured for QR verification.");
+function getQrVerificationSecrets(): Uint8Array[] {
+  const configuredSecret = process.env.QR_SIGNING_SECRET;
+  const keys = [
+    configuredSecret,
+    ...(process.env.NODE_ENV !== "production"
+      ? [process.env.AUTH_SECRET]
+      : []),
+  ].filter(
+    (secret, index, secrets): secret is string =>
+      Boolean(secret) && secrets.indexOf(secret) === index,
+  );
+  if (
+    keys.length === 0 ||
+    keys.some((secret) => new TextEncoder().encode(secret).byteLength < 32)
+  ) {
+    throw new Error("QR verification is not configured.");
   }
-  return new TextEncoder().encode(secret);
+  return keys.map((secret) => new TextEncoder().encode(secret));
 }
 
 export async function POST(request: Request) {
@@ -49,15 +61,20 @@ export async function POST(request: Request) {
   let name: string;
   let verificationTimestamp: string;
   try {
-    const verified = await jwtVerify(
-      parsedBody.data.token,
-      getAuthSecret(),
-      {
-        algorithms: ["HS256"],
-        issuer: "rgrp-portal",
-        audience: "rgrp-qr-verification",
-      },
-    );
+    let verified: { payload: JWTPayload } | undefined;
+    for (const secret of getQrVerificationSecrets()) {
+      try {
+        verified = await jwtVerify(parsedBody.data.token, secret, {
+          algorithms: ["HS256"],
+          issuer: "rgrp-portal",
+          audience: "rgrp-qr-verification",
+        });
+        break;
+      } catch {
+        continue;
+      }
+    }
+    if (!verified) throw new Error("QR token is invalid.");
     const parsedPayload = tokenPayloadSchema.safeParse(verified.payload);
     if (
       !parsedPayload.success ||

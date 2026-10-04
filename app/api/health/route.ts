@@ -8,14 +8,21 @@ export async function GET() {
     getServerEnv();
     await prisma.$queryRaw`SELECT 1`;
 
-    return Response.json({
-      success: true,
-      data: {
-        service: "RGRP Portal",
-        database: "connected",
-        timestamp: new Date().toISOString(),
+    return Response.json(
+      {
+        success: true,
+        data: {
+          service: "available",
+          database: "connected",
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      },
+    );
   } catch {
     console.error("Database health check failed.");
 
@@ -27,7 +34,13 @@ export async function GET() {
           message: "Database connection is currently unavailable.",
         },
       },
-      { status: 503 },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      },
     );
   }
 }

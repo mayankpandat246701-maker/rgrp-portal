@@ -97,12 +97,20 @@ export default async function AdminDashboardPage() {
             </span>
           </Link>
           {admin.role === "SUPER_ADMIN" ? (
-            <Link
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/25 px-5 py-2.5 text-sm font-semibold text-emerald-950 ring-1 ring-stone-200 transition hover:bg-emerald-50"
-              href="/admin/settings/id-card-template"
-            >
-              ID कार्ड टेम्पलेट सेटिंग
-            </Link>
+            <>
+              <Link
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/25 px-5 py-2.5 text-sm font-semibold text-emerald-950 ring-1 ring-stone-200 transition hover:bg-emerald-50"
+                href="/admin/settings/id-card-template"
+              >
+                ID कार्ड टेम्पलेट सेटिंग
+              </Link>
+              <Link
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/25 px-5 py-2.5 text-sm font-semibold text-emerald-950 ring-1 ring-stone-200 transition hover:bg-emerald-50"
+                href="/admin/audit-logs"
+              >
+                ऑडिट लॉग
+              </Link>
+            </>
           ) : null}
         </div>
       </div>

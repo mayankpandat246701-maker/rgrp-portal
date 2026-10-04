@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import {
   createStorageKey,
   deletePrivateFile,
+  isPrivateStorageAvailable,
   savePrivateFile,
 } from "@/lib/private-uploads";
 import { prisma } from "@/lib/prisma";
@@ -46,6 +47,24 @@ export async function POST(request: Request) {
     return Response.json(
       { success: false, error: { message: "इस कार्रवाई की अनुमति नहीं है।" } },
       { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (!isPrivateStorageAvailable()) {
+    return Response.json(
+      {
+        success: false,
+        error: {
+          message: "यह सेवा अभी उपलब्ध नहीं है। कृपया प्रशासक से संपर्क करें।",
+        },
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+          "Retry-After": "60",
+        },
+      },
     );
   }
 

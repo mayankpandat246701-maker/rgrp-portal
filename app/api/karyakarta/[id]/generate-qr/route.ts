@@ -4,6 +4,7 @@ import { SignJWT } from "jose";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import {
   deletePrivateFile,
+  isPrivateStorageAvailable,
   savePrivateFile,
 } from "@/lib/private-uploads";
 import { prisma } from "@/lib/prisma";
@@ -12,10 +13,12 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-function getAuthSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
+function getQrSigningSecret(): Uint8Array {
+  const secret =
+    process.env.QR_SIGNING_SECRET ??
+    (process.env.NODE_ENV !== "production" ? process.env.AUTH_SECRET : undefined);
   if (!secret || new TextEncoder().encode(secret).byteLength < 32) {
-    throw new Error("AUTH_SECRET is not configured for QR signing.");
+    throw new Error("QR signing is not configured.");
   }
   return new TextEncoder().encode(secret);
 }
@@ -32,6 +35,24 @@ export async function POST(_request: Request, context: RouteContext) {
     return Response.json(
       { success: false, error: { message: "इस कार्रवाई की अनुमति नहीं है।" } },
       { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (!isPrivateStorageAvailable()) {
+    return Response.json(
+      {
+        success: false,
+        error: {
+          message: "यह सेवा अभी उपलब्ध नहीं है। कृपया प्रशासक से संपर्क करें।",
+        },
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+          "Retry-After": "60",
+        },
+      },
     );
   }
 
@@ -90,7 +111,7 @@ export async function POST(_request: Request, context: RouteContext) {
     .setIssuedAt()
     .setIssuer("rgrp-portal")
     .setAudience("rgrp-qr-verification")
-    .sign(getAuthSecret());
+    .sign(getQrSigningSecret());
 
   const qrImage = await QRCode.toBuffer(token, {
     type: "png",
