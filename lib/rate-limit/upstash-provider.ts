@@ -67,18 +67,30 @@ export async function consumeSharedRateLimit(
   return toResult(await limiter.limit(key));
 }
 
-function loginFailureKey(ip: string): string {
-  return `rgrp:admin-login-failures:${ip}`;
+const LOGIN_FAILURE_KEY_PREFIX = "rgrp";
+const ADMIN_LOGIN_FAILURE_NAMESPACE = "admin-login";
+const LOGIN_FAILURE_LIMIT = 5;
+const LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60;
+
+/**
+ * Builds the counter key for a namespace. The admin namespace keeps the exact
+ * historical key (`rgrp:admin-login-failures:<subject>`) so existing admin
+ * counters, limits and responses are unaffected by the namespace parameter.
+ */
+function loginFailureKey(namespace: string, subject: string): string {
+  return `${LOGIN_FAILURE_KEY_PREFIX}:${namespace}-failures:${subject}`;
 }
 
-export async function checkSharedLoginFailures(
-  ip: string,
+async function checkSharedFailures(
+  namespace: string,
+  subject: string,
+  limit: number = LOGIN_FAILURE_LIMIT,
 ): Promise<SharedRateLimitResult> {
   const redis = getRedis();
-  const key = loginFailureKey(ip);
+  const key = loginFailureKey(namespace, subject);
   const attempts = await redis.get<number>(key);
 
-  if (typeof attempts !== "number" || attempts < 5) {
+  if (typeof attempts !== "number" || attempts < limit) {
     return { allowed: true, retryAfterSeconds: 0 };
   }
 
@@ -89,16 +101,66 @@ export async function checkSharedLoginFailures(
   };
 }
 
-export async function recordSharedLoginFailure(ip: string): Promise<void> {
+async function recordSharedFailure(
+  namespace: string,
+  subject: string,
+): Promise<void> {
   const redis = getRedis();
-  const key = loginFailureKey(ip);
+  const key = loginFailureKey(namespace, subject);
   const attempts = await redis.incr(key);
 
   if (attempts === 1) {
-    await redis.expire(key, 15 * 60);
+    await redis.expire(key, LOGIN_FAILURE_WINDOW_SECONDS);
   }
 }
 
+async function clearSharedFailures(
+  namespace: string,
+  subject: string,
+): Promise<void> {
+  await getRedis().del(loginFailureKey(namespace, subject));
+}
+
+/**
+ * Namespaced failure counters for panels other than the admin login. Only
+ * FAILED attempts are counted, so a caller checks before verifying
+ * credentials and records afterwards.
+ *
+ * `limit` defaults to the shared login-failure limit; a looser per-IP bucket
+ * can be requested without affecting any other namespace.
+ */
+export async function checkLoginFailures(
+  namespace: string,
+  subject: string,
+  limit?: number,
+): Promise<SharedRateLimitResult> {
+  return checkSharedFailures(namespace, subject, limit);
+}
+
+export async function recordLoginFailure(
+  namespace: string,
+  subject: string,
+): Promise<void> {
+  return recordSharedFailure(namespace, subject);
+}
+
+export async function clearLoginFailures(
+  namespace: string,
+  subject: string,
+): Promise<void> {
+  return clearSharedFailures(namespace, subject);
+}
+
+export async function checkSharedLoginFailures(
+  ip: string,
+): Promise<SharedRateLimitResult> {
+  return checkSharedFailures(ADMIN_LOGIN_FAILURE_NAMESPACE, ip);
+}
+
+export async function recordSharedLoginFailure(ip: string): Promise<void> {
+  return recordSharedFailure(ADMIN_LOGIN_FAILURE_NAMESPACE, ip);
+}
+
 export async function clearSharedLoginFailures(ip: string): Promise<void> {
-  await getRedis().del(loginFailureKey(ip));
+  return clearSharedFailures(ADMIN_LOGIN_FAILURE_NAMESPACE, ip);
 }

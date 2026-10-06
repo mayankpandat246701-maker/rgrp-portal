@@ -1,23 +1,21 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AuthCard } from "@/components/ui/auth-card";
 import { ClientFormNotice } from "@/components/ui/client-form-notice";
 import { FormField, inputClassName } from "@/components/ui/form-field";
 import { Icon } from "@/components/ui/icon";
+import { normalizeIndianMobile } from "@/lib/karyakarta-mobile";
 
 export function KaryakartaLoginForm() {
+  const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
-  const [requestShown, setRequestShown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function clearMockRequest() {
-    setNotice("");
-    setRequestShown(false);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice("");
     const formData = new FormData(event.currentTarget);
@@ -32,15 +30,45 @@ export function KaryakartaLoginForm() {
     }
     if (!mobile) {
       nextErrors.mobile = "कृपया मोबाइल नंबर दर्ज करें।";
-    } else if (!/^[6-9]\d{9}$/.test(mobile)) {
+    } else if (!normalizeIndianMobile(mobile)) {
       nextErrors.mobile = "कृपया 10 अंकों का सही मोबाइल नंबर दर्ज करें।";
     }
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    setRequestShown(true);
-    setNotice("OTP सुविधा सुरक्षित बैकएंड कनेक्शन के बाद सक्रिय होगी।");
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/karyakarta/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regNo: registrationNumber, mobile }),
+      });
+      const result: unknown = await response.json();
+      const succeeded =
+        typeof result === "object" &&
+        result !== null &&
+        "success" in result &&
+        result.success === true;
+
+      if (response.ok && succeeded) {
+        router.replace("/karyakarta/dashboard");
+        router.refresh();
+        return;
+      }
+
+      setNotice(
+        response.status === 429
+          ? "कई प्रयास किए गए हैं। कृपया कुछ देर बाद फिर कोशिश करें।"
+          : response.status === 401
+            ? "पंजीकरण संख्या या मोबाइल नंबर गलत है।"
+            : "लॉगिन अभी उपलब्ध नहीं है। कृपया फिर से प्रयास करें।",
+      );
+    } catch {
+      setNotice("लॉगिन अभी उपलब्ध नहीं है। कृपया फिर से प्रयास करें।");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -81,7 +109,6 @@ export function KaryakartaLoginForm() {
                 ...current,
                 registrationNumber: "",
               }));
-              clearMockRequest();
             }}
             placeholder="RGRP-2026-001"
             required
@@ -89,9 +116,9 @@ export function KaryakartaLoginForm() {
         </FormField>
         <FormField
           error={errors.mobile}
-          hint="10 अंकों का मोबाइल नंबर दर्ज करें।"
+          hint="पंजीकृत 10 अंकों का मोबाइल नंबर दर्ज करें।"
           id="mobile"
-          label="मोबाइल नंबर"
+          label="पंजीकृत मोबाइल नंबर"
           required
         >
           <input
@@ -101,11 +128,10 @@ export function KaryakartaLoginForm() {
             className={inputClassName}
             id="mobile"
             inputMode="numeric"
-            maxLength={10}
+            maxLength={15}
             name="mobile"
             onChange={() => {
               setErrors((current) => ({ ...current, mobile: "" }));
-              clearMockRequest();
             }}
             placeholder="उदाहरण: 9876543210"
             required
@@ -113,31 +139,14 @@ export function KaryakartaLoginForm() {
           />
         </FormField>
 
-        {requestShown ? (
-          <FormField
-            hint="यह UI नमूना है; OTP जारी या सत्यापित नहीं किया गया है।"
-            id="otp"
-            label="OTP"
-          >
-            <input
-              aria-describedby="otp-hint"
-              autoComplete="one-time-code"
-              className={`${inputClassName} cursor-not-allowed bg-stone-100`}
-              disabled
-              id="otp"
-              inputMode="numeric"
-              placeholder="OTP सुविधा अभी उपलब्ध नहीं है"
-              type="text"
-            />
-          </FormField>
-        ) : null}
-
         <ClientFormNotice message={notice} tone="warning" />
         <button
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isSubmitting}
           type="submit"
         >
-          OTP प्राप्त करें
+          <Icon name="lock" size={18} />
+          {isSubmitting ? "प्रवेश हो रहा है…" : "सुरक्षित लॉगिन"}
         </button>
       </form>
 

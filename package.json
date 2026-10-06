@@ -7,7 +7,7 @@
     "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --conditions=react-server --import tsx --test lib/env.test.ts lib/karyakarta-upload-handler.test.ts lib/document-upload-client.test.ts lib/leadership-message-validation.test.ts lib/karyakarta-validation.test.ts lib/official-link-validation.test.ts lib/registration-verification.test.ts lib/admin-permissions.test.ts lib/news-validation.test.ts lib/ground-activity-validation.test.ts lib/content-image.test.ts lib/public-content.test.ts lib/schemas/karyakarta-application.test.ts lib/joining-certificate.test.ts lib/joining-certificate-pdf.test.ts",
+    "test": "node --conditions=react-server --import tsx --test lib/env.test.ts lib/karyakarta-mobile.test.ts lib/karyakarta-upload-handler.test.ts lib/document-upload-client.test.ts lib/leadership-message-validation.test.ts lib/karyakarta-validation.test.ts lib/official-link-validation.test.ts lib/registration-verification.test.ts lib/admin-permissions.test.ts lib/news-validation.test.ts lib/ground-activity-validation.test.ts lib/content-image.test.ts lib/public-content.test.ts lib/schemas/karyakarta-application.test.ts lib/joining-certificate.test.ts lib/joining-certificate-pdf.test.ts",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",

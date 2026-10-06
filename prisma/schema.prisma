@@ -65,6 +65,8 @@ enum AdminAuditAction {
   DOCUMENTS_REJECTED
   ID_CARD_TEMPLATE_UPLOADED
   QR_GENERATED
+  ID_CARD_GENERATED
+  ID_CARD_DOWNLOADED
 }
 
 enum UploadStatus {
@@ -148,6 +150,7 @@ model Karyakarta {
   whatsappContactUrl      String?
   adminNotes              String?
   archivedAt              DateTime?
+  lastLoginAt             DateTime?
   createdById             String?
   updatedById             String?
   status                  KaryakartaStatus        @default(PENDING)
@@ -234,12 +237,14 @@ model AdminAuditLog {
   adminId       String
   action        AdminAuditAction
   applicationId String?
+  karyakartaId  String?
   metadata      Json?
   createdAt     DateTime         @default(now())
   admin         Admin            @relation(fields: [adminId], references: [id], onDelete: Restrict)
 
   @@index([adminId])
   @@index([applicationId])
+  @@index([karyakartaId])
   @@index([createdAt])
 }
 

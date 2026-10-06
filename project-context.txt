@@ -1,0 +1,3232 @@
+
+===== FILE: prisma\schema.prisma =====
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  NATIONAL_ADMIN
+  STATE_ADMIN
+  DISTRICT_ADMIN
+  CONTENT_ADMIN
+  CONTENT_EDITOR
+  VIEWER
+}
+
+enum KaryakartaProfileStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  REVOKED
+  REJECTED
+  EXPIRED
+  ARCHIVED
+}
+
+enum RegistrationCardStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  SUSPENDED
+  REVOKED
+  REISSUED
+}
+
+enum OfficialLinkLevel {
+  NATIONAL
+  STATE
+  DISTRICT
+}
+
+enum OfficialLinkVisibility {
+  PUBLIC
+  MEMBERS_ONLY
+  HIDDEN
+}
+
+enum JoiningCertificateStatus {
+  ACTIVE
+  REVOKED
+  SUPERSEDED
+}
+
+enum AdminAuditAction {
+  APPLICATION_APPROVED
+  APPLICATION_BLOCKED
+  DOCUMENTS_VERIFIED
+  DOCUMENTS_REJECTED
+  ID_CARD_TEMPLATE_UPLOADED
+  QR_GENERATED
+}
+
+enum UploadStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum KaryakartaStatus {
+  PENDING
+  APPROVED
+  BLOCKED
+  REJECTED
+  INACTIVE
+}
+
+enum KaryakartaApplicationStatus {
+  PENDING
+  APPROVED
+  BLOCKED
+}
+
+enum NoticeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Admin {
+  id                    String                  @id @default(cuid())
+  name                  String
+  email                 String                  @unique
+  passwordHash          String
+  role                  AdminRole               @default(SUPER_ADMIN)
+  assignedState         String?
+  assignedDistrict      String?
+  isActive              Boolean                 @default(true)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  activities            AdminActivity[]
+  auditLogs             AdminAuditLog[]
+  uploadedTemplates     IDCardTemplate[]
+  verifiedApplications  KaryakartaApplication[] @relation("ApplicationDocumentVerifier")
+  createdKaryakartas    Karyakarta[]            @relation("KaryakartaCreator")
+  updatedKaryakartas    Karyakarta[]            @relation("KaryakartaUpdater")
+  authoredNewsPosts     NewsPost[]              @relation("NewsPostAuthor")
+  authoredActivities    GroundActivity[]        @relation("GroundActivityAuthor")
+  updatedSiteSettings   SiteSettings[]          @relation("SiteSettingsUpdater")
+  generatedCertificates JoiningCertificate[]    @relation("CertificateGenerator")
+}
+
+model Karyakarta {
+  id                      String                  @id @default(cuid())
+  regNo                   String                  @unique
+  slug                    String                  @unique @default("")
+  name                    String
+  phone                   String                  @unique
+  email                   String?                 @unique
+  designation             String?
+  daitva                  String?
+  state                   String?
+  zone                    String?
+  district                String?
+  tehsil                  String?
+  cityOrVillage           String?
+  photoUrl                String?
+  profilePhotoPath        String?
+  publicBio               String?
+  joiningDate             DateTime?
+  appointmentStartDate    DateTime?
+  appointmentEndDate      DateTime?
+  appointmentDocumentPath String?
+  isPublicProfile         Boolean                 @default(false)
+  isEmergencyHidden       Boolean                 @default(false)
+  isFeatured              Boolean                 @default(false)
+  profileStatus           KaryakartaProfileStatus @default(PENDING)
+  displayOrder            Int                     @default(0)
+  instagramUrl            String?
+  facebookUrl             String?
+  youtubeUrl              String?
+  whatsappContactUrl      String?
+  adminNotes              String?
+  archivedAt              DateTime?
+  createdById             String?
+  updatedById             String?
+  status                  KaryakartaStatus        @default(PENDING)
+  approvedAt              DateTime?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  registrations           RegistrationCard[]
+  certificates            JoiningCertificate[]
+  createdBy               Admin?                  @relation("KaryakartaCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy               Admin?                  @relation("KaryakartaUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([profileStatus, isPublicProfile])
+  @@index([isEmergencyHidden, profileStatus, isPublicProfile])
+  @@index([state, district])
+  @@index([isFeatured, displayOrder])
+  @@index([displayOrder])
+  @@index([regNo])
+  @@index([phone])
+  @@index([email])
+  @@index([status])
+  @@index([state])
+  @@index([zone])
+  @@index([district])
+  @@index([createdAt])
+}
+
+model KaryakartaApplication {
+  id                   String                      @id @default(cuid())
+  applicationReference String                      @unique
+  fullName             String
+  fatherName           String
+  motherName           String
+  dateOfBirth          DateTime                    @db.Date
+  gender               String
+  category             String
+  mobile               String
+  alternateMobile      String?
+  email                String?
+  address              String
+  pincode              String
+  district             String
+  state                String
+  constituency         String
+  education            String
+  occupation           String
+  organizationName     String?
+  designation          String?
+  joiningReason        String?
+  socialMediaLinks     String?
+  referenceBy          String?
+  status               KaryakartaApplicationStatus @default(PENDING)
+  photoPath            String?
+  aadhaarPath          String?
+  qrCodePath           String?
+  uploadStatus         UploadStatus                @default(PENDING)
+  documentReviewReason String?
+  verifiedByAdminId    String?
+  verifiedAt           DateTime?
+  idCardGeneratedAt    DateTime?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  verifiedByAdmin      Admin?                      @relation("ApplicationDocumentVerifier", fields: [verifiedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([mobile])
+  @@index([uploadStatus])
+}
+
+model IDCardTemplate {
+  id                String   @id @default(cuid())
+  templatePath      String
+  uploadedByAdminId String
+  uploadedAt        DateTime @default(now())
+  isActive          Boolean  @default(true)
+  uploadedByAdmin   Admin    @relation(fields: [uploadedByAdminId], references: [id], onDelete: Restrict)
+
+  @@index([isActive])
+  @@index([uploadedAt])
+}
+
+model AdminAuditLog {
+  id            String           @id @default(cuid())
+  adminId       String
+  action        AdminAuditAction
+  applicationId String?
+  metadata      Json?
+  createdAt     DateTime         @default(now())
+  admin         Admin            @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([adminId])
+  @@index([applicationId])
+  @@index([createdAt])
+}
+
+model Notice {
+  id          String       @id @default(cuid())
+  title       String
+  content     String
+  isFeatured  Boolean      @default(false)
+  status      NoticeStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LeadershipMessage {
+  id             String   @id @default(cuid())
+  name           String
+  designation    String
+  message        String
+  portraitUrl    String?
+  sortOrder      Int      @default(0)
+  displayOrder   Int      @default(0)
+  showOnHomepage Boolean  @default(true)
+  state          String?
+  district       String?
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@index([isPublished, showOnHomepage, displayOrder])
+}
+
+model RegistrationCard {
+  id                 String                 @id @default(cuid())
+  karyakartaId       String
+  registrationNumber String                 @unique
+  status             RegistrationCardStatus @default(PENDING)
+  issueDate          DateTime?
+  expiryDate         DateTime?
+  revokedReason      String?
+  reissuedFromId     String?
+  createdById        String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  karyakarta         Karyakarta             @relation(fields: [karyakartaId], references: [id], onDelete: Restrict)
+  certificates       JoiningCertificate[]
+
+  @@index([karyakartaId, status])
+  @@index([expiryDate])
+}
+
+model OfficialSocialLink {
+  id                String                 @id @default(cuid())
+  title             String
+  platform          String
+  url               String
+  level             OfficialLinkLevel
+  state             String?
+  district          String?
+  description       String?
+  contactPersonName String?
+  isPublic          Boolean                @default(true)
+  isActive          Boolean                @default(true)
+  visibility        OfficialLinkVisibility @default(PUBLIC)
+  displayOrder      Int                    @default(0)
+  createdById       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([level, state, district])
+  @@index([isPublic, isActive, visibility, displayOrder])
+}
+
+model RegistrationVerificationLog {
+  id               String   @id @default(cuid())
+  registrationHash String
+  resultType       String
+  createdAt        DateTime @default(now())
+
+  @@index([registrationHash, createdAt])
+  @@index([createdAt])
+}
+
+model CertificateVerificationLog {
+  id              String   @id @default(cuid())
+  certificateHash String
+  resultType      String
+  createdAt       DateTime @default(now())
+
+  @@index([certificateHash, createdAt])
+  @@index([createdAt])
+}
+
+model AdminActivity {
+  id        String   @id @default(cuid())
+  adminId   String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  admin     Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([createdAt])
+}
+
+model SiteSettings {
+  id                String   @id @default("global")
+  logoStorageKey    String?
+  logoMimeType      String?
+  faviconStorageKey String?
+  ogImageStorageKey String?
+  updatedById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  updatedBy         Admin?   @relation("SiteSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedAt])
+}
+
+model NewsPost {
+  id                   String    @id @default(cuid())
+  slug                 String    @unique
+  title                String
+  shortSummary         String
+  fullContent          String
+  coverImageStorageKey String?
+  coverImageAltHindi   String?
+  category             String
+  tags                 String[]  @default([])
+  state                String?
+  district             String?
+  isPublished          Boolean   @default(false)
+  isFeatured           Boolean   @default(false)
+  homepageDisplayOrder Int?
+  scheduledPublishAt   DateTime?
+  publishedAt          DateTime?
+  expiresAt            DateTime?
+  archivedAt           DateTime?
+  authorId             String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  author               Admin?    @relation("NewsPostAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([isPublished, archivedAt, scheduledPublishAt, expiresAt])
+  @@index([isFeatured, homepageDisplayOrder, publishedAt])
+  @@index([state, district])
+  @@index([publishedAt])
+  @@index([expiresAt])
+}
+
+model GroundActivity {
+  id                   String                @id @default(cuid())
+  slug                 String                @unique
+  title                String
+  shortSummary         String
+  fullDescription      String
+  activityType         String
+  coverImageStorageKey String?
+  coverImageAltHindi   String?
+  activityDate         DateTime
+  state                String
+  district             String
+  tehsilOrBlock        String?
+  cityOrVillage        String?
+  publicLocationLabel  String?
+  exactLocationPublic  Boolean               @default(false)
+  mapLink              String?
+  isPublished          Boolean               @default(false)
+  isFeaturedOnHomepage Boolean               @default(false)
+  homepageDisplayOrder Int?
+  scheduledPublishAt   DateTime?
+  publishedAt          DateTime?
+  expiresAt            DateTime?
+  archivedAt           DateTime?
+  authorId             String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  author               Admin?                @relation("GroundActivityAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  images               GroundActivityImage[]
+
+  @@index([isPublished, archivedAt, scheduledPublishAt, expiresAt])
+  @@index([isFeaturedOnHomepage, homepageDisplayOrder, publishedAt])
+  @@index([state, district])
+  @@index([activityDate])
+  @@index([expiresAt])
+}
+
+model GroundActivityImage {
+  id               String         @id @default(cuid())
+  groundActivityId String
+  storageKey       String
+  altTextHindi     String?
+  displayOrder     Int            @default(0)
+  isPublic         Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  groundActivity   GroundActivity @relation(fields: [groundActivityId], references: [id], onDelete: Restrict)
+
+  @@index([groundActivityId, isPublic, displayOrder])
+}
+
+model JoiningCertificate {
+  id                     String                   @id @default(cuid())
+  certificateNumber      String                   @unique
+  karyakartaId           String
+  registrationCardId     String
+  status                 JoiningCertificateStatus @default(ACTIVE)
+  issueDate              DateTime                 @default(now())
+  generatedAt            DateTime                 @default(now())
+  generatedByAdminId     String?
+  templateVersion        String                   @default("1")
+  fileStorageKey         String
+  reissuedFromId         String?
+  revokedAt              DateTime?
+  revokedReasonAdminOnly String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  karyakarta             Karyakarta               @relation(fields: [karyakartaId], references: [id], onDelete: Restrict)
+  registrationCard       RegistrationCard         @relation(fields: [registrationCardId], references: [id], onDelete: Restrict)
+  generatedByAdmin       Admin?                   @relation("CertificateGenerator", fields: [generatedByAdminId], references: [id], onDelete: SetNull)
+  reissuedFrom           JoiningCertificate?      @relation("CertificateReissues", fields: [reissuedFromId], references: [id], onDelete: SetNull)
+  reissuedCertificates   JoiningCertificate[]     @relation("CertificateReissues")
+
+  @@index([karyakartaId, status])
+  @@index([registrationCardId, status])
+  @@index([generatedByAdminId])
+  @@index([reissuedFromId])
+  @@index([issueDate])
+}
+
+===== FILE: lib\server-env-validation.ts =====
+
+import { z } from "zod";
+
+const strongSecret = z
+  .string()
+  .min(32)
+  .refine((value) => new Set(value).size >= 16);
+
+const productionEnvironmentSchema = z
+  .object({
+    DATABASE_URL: z.string().min(1),
+    DIRECT_URL: z.string().min(1),
+    AUTH_SECRET: strongSecret,
+    ADMIN_BOOTSTRAP_EMAIL: z.string().email(),
+    ADMIN_BOOTSTRAP_PASSWORD: z
+      .string()
+      .min(16)
+      .refine((value) => new Set(value).size >= 8),
+    DOCUMENT_ENCRYPTION_KEY: strongSecret,
+    QR_SIGNING_SECRET: strongSecret,
+    APP_BASE_URL: z.string().url().startsWith("https://"),
+    STORAGE_PROVIDER: z.enum(["supabase", "vercel-blob"]),
+    SUPABASE_URL: z.string().optional(),
+    SUPABASE_SECRET_KEY: z.string().optional(),
+    SUPABASE_STORAGE_BUCKET: z.string().optional(),
+    // Vercel Blob auth: either a long-lived read-write token (local dev) or
+    // an OIDC store id injected for the connected store (Vercel default).
+    BLOB_READ_WRITE_TOKEN: z.string().optional(),
+    BLOB_STORE_ID: z.string().optional(),
+    BLOB_PUBLIC_READ_WRITE_TOKEN: z.string().optional(),
+    BLOB_PUBLIC_STORE_ID: z.string().optional(),
+    BLOB_PUBLIC__STORE_ID: z.string().optional(),
+    RATE_LIMIT_PROVIDER: z.literal("upstash"),
+    UPSTASH_REDIS_REST_URL: z.string().url().startsWith("https://"),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
+    NODE_ENV: z.literal("production"),
+  })
+  .superRefine((environment, context) => {
+    const secrets = [
+      environment.AUTH_SECRET,
+      environment.DOCUMENT_ENCRYPTION_KEY,
+      environment.QR_SIGNING_SECRET,
+    ];
+
+    if (new Set(secrets).size !== secrets.length) {
+      context.addIssue({
+        code: "custom",
+        message: "Secrets must be independent.",
+        path: ["AUTH_SECRET"],
+      });
+    }
+
+    function requireValue(
+      name:
+        | "SUPABASE_URL"
+        | "SUPABASE_SECRET_KEY"
+        | "SUPABASE_STORAGE_BUCKET",
+    ): void {
+      if (!environment[name] || environment[name].trim() === "") {
+        context.addIssue({
+          code: "custom",
+          message: `${name} is required.`,
+          path: [name],
+        });
+      }
+    }
+
+    if (environment.STORAGE_PROVIDER === "supabase") {
+      requireValue("SUPABASE_URL");
+      requireValue("SUPABASE_SECRET_KEY");
+      requireValue("SUPABASE_STORAGE_BUCKET");
+      if (
+        environment.SUPABASE_URL &&
+        !z.string().url().startsWith("https://").safeParse(environment.SUPABASE_URL)
+          .success
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "SUPABASE_URL must be an https URL.",
+          path: ["SUPABASE_URL"],
+        });
+      }
+    } else if (environment.STORAGE_PROVIDER === "vercel-blob") {
+      const hasPrivateBlobAuth =
+        Boolean(environment.BLOB_READ_WRITE_TOKEN?.trim()) ||
+        Boolean(environment.BLOB_STORE_ID?.trim());
+      if (!hasPrivateBlobAuth) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "BLOB_READ_WRITE_TOKEN or BLOB_STORE_ID is required when STORAGE_PROVIDER=vercel-blob.",
+          path: ["BLOB_STORE_ID"],
+        });
+      }
+
+      const hasPublicBlobAuth =
+        Boolean(environment.BLOB_PUBLIC_READ_WRITE_TOKEN?.trim()) ||
+        Boolean(
+          environment.BLOB_PUBLIC_STORE_ID?.trim() ||
+            environment.BLOB_PUBLIC__STORE_ID?.trim(),
+        );
+      if (!hasPublicBlobAuth) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "BLOB_PUBLIC_READ_WRITE_TOKEN or BLOB_PUBLIC__STORE_ID is required when STORAGE_PROVIDER=vercel-blob.",
+          path: ["BLOB_PUBLIC__STORE_ID"],
+        });
+      }
+    }
+  });
+
+function configurationError(issues: z.ZodError["issues"]): Error {
+  const invalidNames = new Set(
+    issues
+      .map((issue) => issue.path[0])
+      .filter((path): path is string => typeof path === "string"),
+  );
+  const invalidVariables = Object.keys(productionEnvironmentSchema.shape).filter(
+    (name) => invalidNames.has(name),
+  );
+
+  return new Error(
+    `Invalid production server configuration: missing or invalid variables: ${invalidVariables.join(", ")}`,
+  );
+}
+
+export function parseProductionEnvironment(
+  values: Record<string, string | undefined>,
+) {
+  const result = productionEnvironmentSchema.safeParse(values);
+
+  if (!result.success) {
+    throw configurationError(result.error.issues);
+  }
+
+  return result.data;
+}
+
+===== FILE: lib\storage\vercel-blob-provider.ts =====
+
+import "server-only";
+
+import { del, get, put } from "@vercel/blob";
+
+import {
+  StorageUnavailableError,
+  type PrivateStorageProvider,
+} from "@/lib/storage/types";
+
+/**
+ * Auth for the PRIVATE document store.
+ * - Local development: an explicit `BLOB_READ_WRITE_TOKEN` (e.g. from
+ *   .env.local) always wins, matching the SDK's token-first priority.
+ * - Vercel (OIDC): `BLOB_STORE_ID` injected by the connected store; the SDK
+ *   then signs requests with `VERCEL_OIDC_TOKEN` automatically.
+ */
+function getPrivateBlobAuth(): { token?: string; storeId?: string } {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (token) return { token };
+
+  const storeId = process.env.BLOB_STORE_ID?.trim();
+  if (storeId) return { storeId };
+
+  throw new StorageUnavailableError();
+}
+
+function assertValidStorageKey(storageKey: string): void {
+  if (
+    storageKey.length === 0 ||
+    storageKey.includes("\\") ||
+    storageKey.startsWith("/") ||
+    storageKey.split("/").some(
+      (segment) =>
+        segment === "" ||
+        segment === "." ||
+        segment === ".." ||
+        !/^[A-Za-z0-9._-]+$/.test(segment),
+    )
+  ) {
+    throw new Error("Invalid private storage key.");
+  }
+}
+
+async function readStreamToBuffer(
+  stream: ReadableStream<Uint8Array>,
+): Promise<Buffer> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      total += value.byteLength;
+    }
+  }
+  return Buffer.concat(chunks, total);
+}
+
+/**
+ * Private Vercel Blob store provider. Files are only readable with the
+ * store's read-write token (via the SDK), never through a public URL, so
+ * sensitive documents stay inaccessible to anonymous clients.
+ */
+export const vercelBlobPrivateStorageProvider: PrivateStorageProvider = {
+  name: "vercel-blob-private",
+
+  async save(storageKey, contents) {
+    assertValidStorageKey(storageKey);
+    const auth = getPrivateBlobAuth();
+
+    try {
+      await put(storageKey, contents, {
+        access: "private",
+        allowOverwrite: true,
+        addRandomSuffix: false,
+        contentType: "application/octet-stream",
+        ...auth,
+      });
+    } catch {
+      throw new StorageUnavailableError();
+    }
+  },
+
+  async read(storageKey) {
+    assertValidStorageKey(storageKey);
+    const auth = getPrivateBlobAuth();
+
+    let result;
+    try {
+      result = await get(storageKey, {
+        access: "private",
+        useCache: false,
+        ...auth,
+      });
+    } catch {
+      throw new StorageUnavailableError();
+    }
+
+    if (!result || result.statusCode !== 200) {
+      throw new Error("Private storage file not found.");
+    }
+
+    try {
+      return await readStreamToBuffer(result.stream);
+    } catch {
+      throw new StorageUnavailableError();
+    }
+  },
+
+  async delete(storageKey) {
+    assertValidStorageKey(storageKey);
+    const auth = getPrivateBlobAuth();
+
+    try {
+      await del(storageKey, auth);
+    } catch {
+      throw new StorageUnavailableError();
+    }
+  },
+};
+
+export function isVercelBlobPrivateStorageAvailable(): boolean {
+  return Boolean(
+    process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
+      process.env.BLOB_STORE_ID?.trim(),
+  );
+}
+
+===== FILE: lib\storage\vercel-blob-public-images.ts =====
+
+import "server-only";
+
+import { del, put } from "@vercel/blob";
+
+import { publicImageStoreHost } from "@/lib/storage/public-image-host";
+import { StorageUnavailableError } from "@/lib/storage/types";
+
+const PUBLIC_IMAGE_TOKEN_ENV = "BLOB_PUBLIC_READ_WRITE_TOKEN";
+// OIDC-connected stores inject a store id instead of a long-lived token.
+// The connected public store exposes BLOB_PUBLIC__STORE_ID; the single
+// underscore spelling is accepted as a fallback for prefix variations.
+const PUBLIC_IMAGE_STORE_ID_ENVS = [
+  "BLOB_PUBLIC__STORE_ID",
+  "BLOB_PUBLIC_STORE_ID",
+] as const;
+
+function readPublicImageStoreId(): string | null {
+  for (const name of PUBLIC_IMAGE_STORE_ID_ENVS) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return null;
+}
+
+/**
+ * Auth for the PUBLIC image store only. Always resolves to this store's own
+ * credentials — an explicit token (local development) or its dedicated store
+ * id — so OIDC requests can never fall back to the private document store
+ * (BLOB_STORE_ID).
+ */
+function getPublicImageAuth(): { token?: string; storeId?: string } {
+  const token = process.env[PUBLIC_IMAGE_TOKEN_ENV]?.trim();
+  if (token) return { token };
+
+  const storeId = readPublicImageStoreId();
+  if (storeId) return { storeId };
+
+  throw new StorageUnavailableError();
+}
+
+function assertValidImagePathname(pathname: string): void {
+  if (
+    pathname.length === 0 ||
+    pathname.includes("\\") ||
+    pathname.startsWith("/") ||
+    pathname.split("/").some(
+      (segment) =>
+        segment === "" ||
+        segment === "." ||
+        segment === ".." ||
+        !/^[A-Za-z0-9._-]+$/.test(segment),
+    )
+  ) {
+    throw new Error("Invalid public image pathname.");
+  }
+}
+
+export function isPublicImageStorageAvailable(): boolean {
+  return Boolean(
+    process.env[PUBLIC_IMAGE_TOKEN_ENV]?.trim() || readPublicImageStoreId(),
+  );
+}
+
+/** True only for URLs served by this project's exact public image store. */
+export function isPublicImageUrl(value: string): boolean {
+  const host = publicImageStoreHost(
+    process.env[PUBLIC_IMAGE_TOKEN_ENV],
+    readPublicImageStoreId(),
+  );
+  if (!host) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.host === host;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Uploads an image to the public Blob store and returns its https URL.
+ * Only non-sensitive display images belong here; server-side authorization
+ * and validation must happen before calling this.
+ */
+export async function putPublicImage(
+  pathname: string,
+  contents: Buffer,
+  contentType: string,
+): Promise<string> {
+  assertValidImagePathname(pathname);
+  const auth = getPublicImageAuth();
+
+  const blob = await put(pathname, contents, {
+    access: "public",
+    allowOverwrite: false,
+    addRandomSuffix: true,
+    contentType,
+    ...auth,
+  });
+  return blob.url;
+}
+
+/**
+ * Best-effort deletion of an image previously uploaded by this project.
+ * Returns true when the blob was removed (or nothing needed removal),
+ * false when cleanup failed and the caller should log it.
+ */
+export async function deletePublicImageByUrl(url: string): Promise<boolean> {
+  if (!isPublicImageUrl(url)) return true;
+  try {
+    await del(url, getPublicImageAuth());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+===== FILE: C:\rgrp-portal\app\admin\karyakartas\new\page.tsx =====
+
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { KaryakartaForm } from "@/app/admin/karyakartas/karyakarta-form";
+import { canManageKaryakarta, canPublishContent } from "@/lib/auth/admin-permissions";
+import { requireAdmin } from "@/lib/auth/require-admin";
+
+export const metadata: Metadata = { title: "नया कार्यकर्ता जोड़ें" };
+
+export default async function NewKaryakartaPage() {
+  const admin = await requireAdmin();
+  if (!admin) redirect("/admin/login");
+  if (!canManageKaryakarta(admin.role)) redirect("/admin/dashboard");
+  return (
+    <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-8 sm:py-14">
+      <Link className="text-sm font-semibold text-emerald-800 underline underline-offset-4" href="/admin/karyakartas">कार्यकर्ता सूची पर लौटें</Link>
+      <h1 className="mt-5 text-3xl font-bold tracking-tight text-stone-950">नया कार्यकर्ता जोड़ें</h1>
+      <p className="mt-2 text-sm text-stone-600">अधिकृत स्वीकृति मिलने तक नई प्रोफ़ाइल लंबित रहेगी।</p>
+      <KaryakartaForm canApprove={canPublishContent(admin.role)} initialMember={null} />
+    </section>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\admin\karyakartas\certificate-panel.tsx =====
+
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+type Certificate = {
+  id: string;
+  certificateNumber: string;
+  status: "ACTIVE" | "REVOKED" | "SUPERSEDED";
+  issueDate: string;
+  generatedAt: string;
+  revokedAt: string | null;
+};
+
+const statusLabels: Record<Certificate["status"], string> = {
+  ACTIVE: "सक्रिय",
+  REVOKED: "रद्द",
+  SUPERSEDED: "पुनः जारी",
+};
+
+function dateLabel(value: string) {
+  return new Intl.DateTimeFormat("hi-IN", {
+    dateStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
+}
+
+export function JoiningCertificatePanel({
+  memberId,
+  certificates,
+}: {
+  memberId: string;
+  certificates: Certificate[];
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const activeCertificate = certificates.some((item) => item.status === "ACTIVE");
+
+  async function issue() {
+    if (
+      activeCertificate &&
+      !window.confirm("नया प्रमाणपत्र जारी करने पर वर्तमान प्रमाणपत्र इतिहास में पुनः जारी के रूप में सुरक्षित होगा। जारी रखें?")
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/admin/karyakartas/${encodeURIComponent(memberId)}/certificates`,
+        { method: "POST" },
+      );
+      const body: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof body === "object" &&
+          body !== null &&
+          "error" in body &&
+          typeof body.error === "string"
+            ? body.error
+            : "प्रमाणपत्र जारी नहीं किया जा सका।";
+        throw new Error(message);
+      }
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "प्रमाणपत्र जारी नहीं किया जा सका।");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revoke(certificateId: string) {
+    const reason = window.prompt("प्रमाणपत्र रद्द करने का कारण लिखें (5 से 500 अक्षर):");
+    if (reason === null) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/certificates/${encodeURIComponent(certificateId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const body: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof body === "object" &&
+          body !== null &&
+          "error" in body &&
+          typeof body.error === "string"
+            ? body.error
+            : "प्रमाणपत्र रद्द नहीं किया जा सका।";
+        throw new Error(message);
+      }
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "प्रमाणपत्र रद्द नहीं किया जा सका।");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mt-8 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-stone-950">नियुक्ति प्रमाणपत्र</h2>
+          <p className="mt-1 text-sm text-stone-600">सदस्य लॉगिन उपलब्ध होने तक प्रमाणपत्र डाउनलोड केवल अधिकृत प्रशासकों के लिए है।</p>
+        </div>
+        <button
+          className="min-h-11 rounded-xl bg-emerald-900 px-5 text-sm font-semibold text-white disabled:opacity-50"
+          disabled={busy}
+          onClick={issue}
+          type="button"
+        >
+          {busy ? "कृपया प्रतीक्षा करें..." : activeCertificate ? "पुनः प्रमाणपत्र जारी करें" : "प्रमाणपत्र जारी करें"}
+        </button>
+      </div>
+      {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</p> : null}
+      {certificates.length ? (
+        <ul className="mt-5 divide-y divide-stone-100">
+          {certificates.map((certificate) => (
+            <li className="flex flex-wrap items-center justify-between gap-3 py-4" key={certificate.id}>
+              <div>
+                <p className="font-mono text-sm font-semibold text-stone-900">{certificate.certificateNumber}</p>
+                <p className="mt-1 text-xs text-stone-600">{statusLabels[certificate.status]} · जारी तिथि {dateLabel(certificate.issueDate)}</p>
+              </div>
+              <div className="flex gap-4 text-sm font-semibold">
+                {certificate.status === "ACTIVE" ? (
+                  <>
+                    <a className="text-emerald-900 underline" href={`/api/admin/certificates/${encodeURIComponent(certificate.id)}/download`}>PDF डाउनलोड करें</a>
+                    <button className="text-red-800 underline disabled:opacity-50" disabled={busy} onClick={() => void revoke(certificate.id)} type="button">रद्द करें</button>
+                  </>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-5 text-sm text-stone-600">अभी कोई प्रमाणपत्र जारी नहीं हुआ है।</p>
+      )}
+    </section>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\admin\karyakartas\karyakarta-form.tsx =====
+
+"use client";
+
+import { useState, type FormEvent } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+
+type Registration = {
+  id: string;
+  registrationNumber: string;
+  status: string;
+  issueDate: string | null;
+  expiryDate: string | null;
+  revokedReason: string | null;
+  createdAt: string;
+};
+
+type Member = {
+  id: string;
+  slug: string;
+  regNo: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  daitva: string | null;
+  state: string | null;
+  district: string | null;
+  tehsil: string | null;
+  cityOrVillage: string | null;
+  publicBio: string | null;
+  joiningDate: string | null;
+  appointmentStartDate: string | null;
+  appointmentEndDate: string | null;
+  isPublicProfile: boolean;
+  isEmergencyHidden: boolean;
+  isFeatured: boolean;
+  profileStatus: string;
+  displayOrder: number;
+  instagramUrl: string | null;
+  facebookUrl: string | null;
+  youtubeUrl: string | null;
+  whatsappContactUrl: string | null;
+  adminNotes: string | null;
+  registrations: Registration[];
+};
+
+type Draft = {
+  name: string;
+  phone: string;
+  email: string;
+  daitva: string;
+  state: string;
+  district: string;
+  tehsil: string;
+  cityOrVillage: string;
+  publicBio: string;
+  joiningDate: string;
+  appointmentStartDate: string;
+  appointmentEndDate: string;
+  isPublicProfile: boolean;
+  isEmergencyHidden: boolean;
+  isFeatured: boolean;
+  profileStatus: string;
+  displayOrder: number;
+  instagramUrl: string;
+  facebookUrl: string;
+  youtubeUrl: string;
+  whatsappContactUrl: string;
+  adminNotes: string;
+  registrationNumber: string;
+  issueDate: string;
+  expiryDate: string;
+  registrationStatus: string;
+  registrationAdminReason: string;
+};
+
+const emptyDraft: Draft = {
+  name: "",
+  phone: "",
+  email: "",
+  daitva: "",
+  state: "",
+  district: "",
+  tehsil: "",
+  cityOrVillage: "",
+  publicBio: "",
+  joiningDate: "",
+  appointmentStartDate: "",
+  appointmentEndDate: "",
+  isPublicProfile: false,
+  isEmergencyHidden: false,
+  isFeatured: false,
+  profileStatus: "PENDING",
+  displayOrder: 0,
+  instagramUrl: "",
+  facebookUrl: "",
+  youtubeUrl: "",
+  whatsappContactUrl: "",
+  adminNotes: "",
+  registrationNumber: "",
+  issueDate: "",
+  expiryDate: "",
+  registrationStatus: "PENDING",
+  registrationAdminReason: "",
+};
+
+function asDate(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : "";
+}
+
+function memberDraft(member: Member): Draft {
+  const currentRegistration = member.registrations[0];
+  return {
+    name: member.name,
+    phone: member.phone,
+    email: member.email ?? "",
+    daitva: member.daitva ?? "",
+    state: member.state ?? "",
+    district: member.district ?? "",
+    tehsil: member.tehsil ?? "",
+    cityOrVillage: member.cityOrVillage ?? "",
+    publicBio: member.publicBio ?? "",
+    joiningDate: asDate(member.joiningDate),
+    appointmentStartDate: asDate(member.appointmentStartDate),
+    appointmentEndDate: asDate(member.appointmentEndDate),
+    isPublicProfile: member.isPublicProfile,
+    isEmergencyHidden: member.isEmergencyHidden,
+    isFeatured: member.isFeatured,
+    profileStatus: member.profileStatus,
+    displayOrder: member.displayOrder,
+    instagramUrl: member.instagramUrl ?? "",
+    facebookUrl: member.facebookUrl ?? "",
+    youtubeUrl: member.youtubeUrl ?? "",
+    whatsappContactUrl: member.whatsappContactUrl ?? "",
+    adminNotes: member.adminNotes ?? "",
+    registrationNumber: member.regNo,
+    issueDate: asDate(currentRegistration?.issueDate),
+    expiryDate: asDate(currentRegistration?.expiryDate),
+    registrationStatus: currentRegistration?.status ?? "PENDING",
+    registrationAdminReason: currentRegistration?.revokedReason ?? "",
+  };
+}
+
+async function responseError(response: Response): Promise<string> {
+  const data: unknown = await response.json().catch(() => null);
+  if (typeof data === "object" && data && "error" in data && typeof data.error === "string") return data.error;
+  return "अनुरोध पूरा नहीं किया जा सका।";
+}
+
+async function responseDetails(response: Response): Promise<{
+  message: string;
+  fieldErrors: Record<string, string>;
+}> {
+  const data: unknown = await response.json().catch(() => null);
+  if (typeof data !== "object" || data === null) {
+    return { message: "अनुरोध पूरा नहीं किया जा सका।", fieldErrors: {} };
+  }
+  const message =
+    "error" in data && typeof data.error === "string"
+      ? data.error
+      : "अनुरोध पूरा नहीं किया जा सका।";
+  const fieldErrors: Record<string, string> = {};
+  if ("fieldErrors" in data && typeof data.fieldErrors === "object" && data.fieldErrors !== null) {
+    for (const [field, value] of Object.entries(data.fieldErrors)) {
+      if (typeof value === "string") fieldErrors[field] = value;
+    }
+  }
+  return { message, fieldErrors };
+}
+
+const fieldLabels: Record<string, string> = {
+  name: "पूरा नाम",
+  phone: "मोबाइल नंबर",
+  email: "ईमेल",
+  daitva: "दायित्व",
+  state: "राज्य",
+  district: "जिला",
+  tehsil: "तहसील / ब्लॉक",
+  cityOrVillage: "गाँव / शहर",
+  publicBio: "सार्वजनिक परिचय",
+  joiningDate: "संगठन से जुड़ने की तिथि",
+  appointmentStartDate: "नियुक्ति आरंभ तिथि",
+  appointmentEndDate: "नियुक्ति समाप्ति तिथि",
+  displayOrder: "प्रदर्शन क्रम",
+  instagramUrl: "Instagram लिंक",
+  facebookUrl: "Facebook लिंक",
+  youtubeUrl: "YouTube लिंक",
+  whatsappContactUrl: "WhatsApp संपर्क लिंक",
+  profileStatus: "प्रोफ़ाइल स्थिति",
+  registrationNumber: "पंजीकरण संख्या",
+  issueDate: "जारी करने की तिथि",
+  expiryDate: "समाप्ति तिथि",
+  registrationStatus: "सत्यापन स्थिति",
+  registrationAdminReason: "केवल प्रशासक के लिए पंजीकरण कारण",
+};
+
+const profileStatusLabels: Record<string, string> = {
+  DRAFT: "प्रारूप",
+  PENDING: "लंबित",
+  ACTIVE: "सक्रिय",
+  INACTIVE: "निष्क्रिय",
+  SUSPENDED: "निलंबित",
+  REVOKED: "रद्द",
+  REJECTED: "अस्वीकृत",
+  EXPIRED: "समाप्त",
+  ARCHIVED: "संग्रहीत",
+};
+const registrationStatusLabels: Record<string, string> = {
+  PENDING: "लंबित",
+  ACTIVE: "सक्रिय",
+  INACTIVE: "निष्क्रिय",
+  EXPIRED: "समाप्त",
+  SUSPENDED: "निलंबित",
+  REVOKED: "रद्द",
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block text-sm font-semibold text-stone-800"><span>{label}</span>{children}</label>;
+}
+
+export function KaryakartaForm({
+  initialMember,
+  canApprove,
+}: {
+  initialMember: Member | null;
+  canApprove: boolean;
+}) {
+  const router = useRouter();
+  const [draft, setDraft] = useState(initialMember ? memberDraft(initialMember) : emptyDraft);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [qrData, setQrData] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState("");
+  const [qrError, setQrError] = useState("");
+
+  function update<K extends keyof Draft>(key: K, value: Draft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+    setFieldErrors((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
+
+  async function generateNumber() {
+    setError("");
+    setGenerating(true);
+    try {
+      const response = await fetch("/api/admin/karyakartas/registration-number", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: draft.state, district: draft.district }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const data: unknown = await response.json();
+      if (typeof data !== "object" || !data || !("registrationNumber" in data) || typeof data.registrationNumber !== "string") {
+        throw new Error("पंजीकरण संख्या नहीं बनाई जा सकी।");
+      }
+      update("registrationNumber", data.registrationNumber);
+      setFeedback("पंजीकरण संख्या बना दी गई है।");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "पंजीकरण संख्या नहीं बनाई जा सकी।");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      initialMember &&
+      draft.registrationNumber.toUpperCase() !== initialMember.regNo.toUpperCase() &&
+      !window.confirm("क्या यह पहचान पत्र पुनः जारी करें? पिछला पंजीकरण इतिहास में सुरक्षित रहेगा।")
+    ) {
+      return;
+    }
+    if (
+      initialMember &&
+      ["SUSPENDED", "REVOKED"].includes(draft.registrationStatus) &&
+      !initialMember.registrations.some(
+        (registration) =>
+          registration.registrationNumber === initialMember.regNo &&
+          registration.status === draft.registrationStatus,
+      ) &&
+      !window.confirm(`क्या पंजीकरण स्थिति "${registrationStatusLabels[draft.registrationStatus] ?? draft.registrationStatus}" करें?`)
+    ) {
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setFieldErrors({});
+    setFeedback("");
+    if (!initialMember && !draft.registrationNumber) {
+      setError("सहेजने से पहले पंजीकरण संख्या बनाएँ।");
+      setSaving(false);
+      return;
+    }
+    try {
+      const payload = {
+        ...draft,
+        email: draft.email,
+        registrationNumber: draft.registrationNumber,
+        registrationAdminReason: draft.registrationAdminReason || null,
+      };
+      const response = await fetch(
+        initialMember
+          ? `/api/admin/karyakartas/${encodeURIComponent(initialMember.id)}`
+          : "/api/admin/karyakartas",
+        {
+          method: initialMember ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) {
+        const details = await responseDetails(response);
+        setFieldErrors(details.fieldErrors);
+        throw new Error(details.message);
+      }
+      const data: unknown = await response.json();
+      if (typeof data !== "object" || !data || !("member" in data) || typeof data.member !== "object" || !data.member || !("id" in data.member) || typeof data.member.id !== "string") {
+        throw new Error("जानकारी सहेजी गई, लेकिन सर्वर से मान्य उत्तर नहीं मिला।");
+      }
+      const memberId = data.member.id;
+      if (photo) {
+        const form = new FormData();
+        form.set("photo", photo);
+        const photoResponse = await fetch(`/api/admin/karyakartas/${encodeURIComponent(memberId)}/photo`, { method: "POST", body: form });
+        if (!photoResponse.ok) throw new Error(await responseError(photoResponse));
+      }
+      setFeedback("कार्यकर्ता की जानकारी सफलतापूर्वक सहेजी गई।");
+      router.push(`/admin/karyakartas/${encodeURIComponent(memberId)}/edit`);
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "कार्यकर्ता की जानकारी सहेजी नहीं जा सकी।");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archive() {
+    if (!initialMember || !window.confirm("क्या इस कार्यकर्ता को संग्रहीत करें? पंजीकरण इतिहास सुरक्षित रहेगा।")) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/karyakartas/${encodeURIComponent(initialMember.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...draft,
+          profileStatus: "ARCHIVED",
+          isPublicProfile: false,
+          registrationStatus: "INACTIVE",
+        }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      router.push("/admin/karyakartas");
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "कार्यकर्ता को संग्रहीत नहीं किया जा सका।");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function loadQr() {
+    if (!initialMember) return;
+    setQrError("");
+    try {
+      const response = await fetch(`/api/admin/karyakartas/${encodeURIComponent(initialMember.id)}/qr`);
+      if (!response.ok) throw new Error(await responseError(response));
+      const data: unknown = await response.json();
+      if (typeof data !== "object" || !data || !("dataUrl" in data) || typeof data.dataUrl !== "string") throw new Error("QR कोड उपलब्ध नहीं है।");
+      setQrData(data.dataUrl);
+    } catch (cause) {
+      setQrError(cause instanceof Error ? cause.message : "QR कोड उपलब्ध नहीं है।");
+    }
+  }
+
+  return (
+    <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
+      <form className="space-y-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8" id="karyakarta-form" onSubmit={save}>
+        <section className="grid gap-4 sm:grid-cols-2">
+          <h2 className="text-lg font-bold text-stone-950 sm:col-span-2">कार्यकर्ता प्रोफ़ाइल</h2>
+          <Field label="पूरा नाम"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={150} onChange={(e) => update("name", e.target.value)} required value={draft.name} /></Field>
+          <Field label="मोबाइल नंबर (निजी)"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={24} onChange={(e) => update("phone", e.target.value)} required value={draft.phone} /></Field>
+          <Field label="ईमेल (निजी)"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={254} onChange={(e) => update("email", e.target.value)} type="email" value={draft.email} /></Field>
+          <Field label="दायित्व"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={120} onChange={(e) => update("daitva", e.target.value)} required value={draft.daitva} /></Field>
+          <Field label="राज्य"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={120} onChange={(e) => update("state", e.target.value)} required value={draft.state} /></Field>
+          <Field label="जिला"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={120} onChange={(e) => update("district", e.target.value)} required value={draft.district} /></Field>
+          <Field label="तहसील / ब्लॉक"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={120} onChange={(e) => update("tehsil", e.target.value)} value={draft.tehsil} /></Field>
+          <Field label="गाँव / शहर"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" maxLength={120} onChange={(e) => update("cityOrVillage", e.target.value)} value={draft.cityOrVillage} /></Field>
+          <Field label="संगठन से जुड़ने की तिथि"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("joiningDate", e.target.value)} type="date" value={draft.joiningDate} /></Field>
+          <Field label="नियुक्ति आरंभ तिथि"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("appointmentStartDate", e.target.value)} type="date" value={draft.appointmentStartDate} /></Field>
+          <Field label="नियुक्ति समाप्ति तिथि"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("appointmentEndDate", e.target.value)} type="date" value={draft.appointmentEndDate} /></Field>
+          <Field label="प्रदर्शन क्रम"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" max={9999} min={0} onChange={(e) => update("displayOrder", Number(e.target.value))} type="number" value={draft.displayOrder} /></Field>
+          <Field label="प्रोफ़ाइल चित्र (JPG/PNG, अधिकतम 3 MB)"><input accept="image/jpeg,image/png" className="mt-1 block min-h-11 w-full rounded-lg border px-3 py-2" onChange={(e) => { const selected = e.target.files?.[0] ?? null; setPhoto(selected); setPhotoPreview((current) => { if (current) URL.revokeObjectURL(current); return selected ? URL.createObjectURL(selected) : null; }); }} type="file" />{photoPreview ? <Image alt="चयनित प्रोफ़ाइल चित्र का पूर्वावलोकन" className="mt-3 h-20 w-20 rounded-full object-cover" height={80} src={photoPreview} unoptimized width={80} /> : null}</Field>
+          <Field label="प्रोफ़ाइल स्थिति"><select className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("profileStatus", e.target.value)} value={draft.profileStatus}>{["DRAFT", "PENDING", "ACTIVE", "INACTIVE", "SUSPENDED", "REVOKED", "REJECTED", "EXPIRED", "ARCHIVED"].map((status) => <option disabled={!canApprove && ["ACTIVE", "SUSPENDED", "REVOKED", "REJECTED"].includes(status)} key={status} value={status}>{profileStatusLabels[status]}</option>)}</select></Field>
+          <label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold"><input checked={draft.isPublicProfile} disabled={draft.profileStatus !== "ACTIVE"} onChange={(e) => update("isPublicProfile", e.target.checked)} type="checkbox" />सार्वजनिक प्रोफ़ाइल (केवल सक्रिय स्थिति में)</label>
+          <label className="flex items-center gap-2 text-sm font-semibold"><input checked={draft.isFeatured} onChange={(e) => update("isFeatured", e.target.checked)} type="checkbox" />भविष्य में चयनित कार्यकर्ता के रूप में उपयोग करें</label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-red-800"><input checked={draft.isEmergencyHidden} onChange={(e) => { if (e.target.checked && !window.confirm("यह प्रोफ़ाइल और संबंधित सार्वजनिक पहचान सत्यापन को तुरंत छिपा देगा। जारी रखें?")) return; update("isEmergencyHidden", e.target.checked); }} type="checkbox" />सार्वजनिक निर्देशिका और सत्यापन से तुरंत छिपाएँ</label>
+        </section>
+        <section className="grid gap-4 border-t border-stone-100 pt-5 sm:grid-cols-2">
+          <h2 className="text-lg font-bold text-stone-950 sm:col-span-2">सार्वजनिक परिचय और आधिकारिक सोशल लिंक</h2>
+          <Field label="संक्षिप्त सार्वजनिक परिचय"><textarea className="mt-1 min-h-24 w-full rounded-lg border px-3 py-2" maxLength={1000} onChange={(e) => update("publicBio", e.target.value)} value={draft.publicBio} /></Field>
+          <Field label="Instagram लिंक"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("instagramUrl", e.target.value)} type="url" value={draft.instagramUrl} /></Field>
+          <Field label="Facebook लिंक"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("facebookUrl", e.target.value)} type="url" value={draft.facebookUrl} /></Field>
+          <Field label="YouTube लिंक"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("youtubeUrl", e.target.value)} type="url" value={draft.youtubeUrl} /></Field>
+          <Field label="WhatsApp संपर्क लिंक"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("whatsappContactUrl", e.target.value)} type="url" value={draft.whatsappContactUrl} /></Field>
+        </section>
+        <section className="grid gap-4 border-t border-stone-100 pt-5 sm:grid-cols-2">
+          <h2 className="text-lg font-bold text-stone-950 sm:col-span-2">पंजीकरण / पहचान पत्र</h2>
+          <Field label="पंजीकरण संख्या"><input className="mt-1 min-h-11 w-full rounded-lg border px-3 font-mono uppercase" maxLength={50} onChange={(e) => update("registrationNumber", e.target.value.toUpperCase())} required value={draft.registrationNumber} /></Field>
+          <div className="flex items-end"><button className="min-h-11 rounded-lg border px-4 text-sm font-semibold disabled:opacity-50" disabled={generating || !draft.state || !draft.district} onClick={generateNumber} type="button">{generating ? "बनाई जा रही है..." : "पंजीकरण संख्या बनाएँ"}</button></div>
+          <Field label="सत्यापन स्थिति"><select className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("registrationStatus", e.target.value)} value={draft.registrationStatus}>{["PENDING", "ACTIVE", "INACTIVE", "EXPIRED", "SUSPENDED", "REVOKED"].map((status) => <option disabled={!canApprove && status === "ACTIVE"} key={status} value={status}>{registrationStatusLabels[status]}</option>)}</select></Field>
+          <Field label="जारी करने की तिथि"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("issueDate", e.target.value)} type="date" value={draft.issueDate} /></Field>
+          <Field label="समाप्ति तिथि"><input className="mt-1 min-h-11 w-full rounded-lg border px-3" onChange={(e) => update("expiryDate", e.target.value)} type="date" value={draft.expiryDate} /></Field>
+          {["SUSPENDED", "REVOKED"].includes(draft.registrationStatus) ? <Field label="केवल प्रशासक के लिए निलंबन / रद्दीकरण का कारण"><textarea className="mt-1 min-h-20 w-full rounded-lg border px-3 py-2" maxLength={500} onChange={(e) => update("registrationAdminReason", e.target.value)} required value={draft.registrationAdminReason} /></Field> : null}
+          {initialMember?.registrations.length ? <div className="sm:col-span-2"><h3 className="mb-2 text-sm font-semibold text-stone-700">पंजीकरण इतिहास</h3><ul className="space-y-2">{initialMember.registrations.map((registration) => <li className="flex flex-wrap justify-between gap-2 rounded-lg bg-stone-50 p-3 text-xs" key={registration.id}><span className="font-mono">{registration.registrationNumber}</span><span>{registrationStatusLabels[registration.status] ?? registration.status}</span><span>{registration.issueDate ? asDate(registration.issueDate) : "जारी तिथि उपलब्ध नहीं"}{registration.expiryDate ? ` → ${asDate(registration.expiryDate)}` : ""}</span></li>)}</ul></div> : null}
+        </section>
+        <section className="grid gap-4 border-t border-stone-100 pt-5">
+          <h2 className="text-lg font-bold text-stone-950">केवल प्रशासक के लिए टिप्पणी</h2>
+          <textarea className="min-h-24 w-full rounded-lg border px-3 py-2" maxLength={2000} onChange={(e) => update("adminNotes", e.target.value)} value={draft.adminNotes} />
+        </section>
+        {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</p> : null}
+        {Object.entries(fieldErrors).map(([field, message]) => (
+          <p className="text-xs text-red-700" key={field}>
+            <strong>{fieldLabels[field] ?? "जानकारी"}:</strong> {message}
+          </p>
+        ))}
+        {feedback ? <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900" role="status">{feedback}</p> : null}
+        <div className="flex flex-wrap gap-3"><button className="min-h-11 rounded-xl bg-emerald-900 px-5 text-sm font-semibold text-white disabled:opacity-50" disabled={saving} type="submit">{saving ? "सहेजा जा रहा है..." : "कार्यकर्ता की जानकारी सहेजें"}</button>{initialMember ? <button className="min-h-11 rounded-xl border border-red-200 px-5 text-sm font-semibold text-red-800" onClick={archive} type="button">कार्यकर्ता संग्रहीत करें</button> : null}</div>
+      </form>
+      <aside className="h-fit space-y-5">
+        <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <h2 className="font-bold text-stone-950">पहचान सत्यापन QR</h2>
+          <p className="mt-2 text-sm text-stone-600">QR में केवल सार्वजनिक सत्यापन लिंक शामिल है।</p>
+          {qrData ? <Image alt="सार्वजनिक पंजीकरण सत्यापन से जुड़ा QR कोड" className="mt-4 h-64 w-64 max-w-full rounded bg-white p-2" height={256} src={qrData} unoptimized width={256} /> : null}
+          {qrError ? <p className="mt-3 text-sm text-amber-800">{qrError}</p> : null}
+          <button className="mt-4 min-h-10 rounded-lg border px-4 text-sm font-semibold disabled:opacity-50" disabled={!initialMember || draft.profileStatus !== "ACTIVE" || draft.registrationStatus !== "ACTIVE" || draft.isEmergencyHidden} onClick={loadQr} type="button">QR कोड देखें</button>
+          {qrData ? <a className="ml-3 text-sm font-semibold text-emerald-900 underline" download={`${draft.registrationNumber}.png`} href={qrData}>डाउनलोड करें</a> : null}
+        </section>
+        <section className="rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-600 shadow-sm">
+          <h2 className="font-bold text-stone-950">गोपनीयता स्मरण</h2>
+          <p className="mt-2">मोबाइल नंबर, ईमेल और प्रशासक टिप्पणियाँ निजी रहती हैं। सूची में केवल सक्रिय सत्यापित सार्वजनिक प्रोफ़ाइल दिखाई जाती हैं।</p>
+        </section>
+      </aside>
+    </div>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\admin\karyakartas\page.tsx =====
+
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { canManageKaryakarta, karyakartaScopeWhere } from "@/lib/auth/admin-permissions";
+import { requireAdmin } from "@/lib/auth/require-admin";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "कार्यकर्ता प्रबंधन" };
+
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AdminKaryakartaListPage({ searchParams }: PageProps) {
+  const admin = await requireAdmin();
+  if (!admin) redirect("/admin/login");
+  if (!canManageKaryakarta(admin.role)) redirect("/admin/dashboard");
+  const params = await searchParams;
+  const get = (key: string) => typeof params[key] === "string" ? (params[key] as string).trim() : "";
+  const q = get("q").slice(0, 100);
+  const status = get("status");
+  const state = get("state").slice(0, 120);
+  const district = get("district").slice(0, 120);
+  const requestedPage = Number(get("page"));
+  const page = Math.max(
+    1,
+    Math.min(10_000, Number.isSafeInteger(requestedPage) ? requestedPage : 1),
+  );
+  const filters = {
+    ...(status && ["DRAFT", "PENDING", "ACTIVE", "INACTIVE", "SUSPENDED", "REVOKED", "REJECTED", "EXPIRED", "ARCHIVED"].includes(status) ? { profileStatus: status as "DRAFT" | "PENDING" | "ACTIVE" | "INACTIVE" | "SUSPENDED" | "REVOKED" | "REJECTED" | "EXPIRED" | "ARCHIVED" } : {}),
+    ...(q ? { OR: [
+      { name: { contains: q, mode: "insensitive" as const } },
+      { regNo: { contains: q.toUpperCase(), mode: "insensitive" as const } },
+      { state: { contains: q, mode: "insensitive" as const } },
+      { district: { contains: q, mode: "insensitive" as const } },
+      { daitva: { contains: q, mode: "insensitive" as const } },
+    ] } : {}),
+    ...(state ? { state } : {}),
+    ...(district ? { district } : {}),
+  };
+  const where = { AND: [karyakartaScopeWhere(admin), filters] };
+  const [members, total] = await prisma.$transaction([
+    prisma.karyakarta.findMany({
+      where,
+      select: { id: true, slug: true, regNo: true, name: true, daitva: true, state: true, district: true, profileStatus: true, isPublicProfile: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      skip: (page - 1) * 50,
+    }),
+    prisma.karyakarta.count({ where }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / 50));
+  const statusLabels: Record<string, string> = {
+    DRAFT: "प्रारूप",
+    PENDING: "लंबित",
+    ACTIVE: "सक्रिय",
+    INACTIVE: "निष्क्रिय",
+    SUSPENDED: "निलंबित",
+    REVOKED: "रद्द",
+    REJECTED: "अस्वीकृत",
+    EXPIRED: "समाप्त",
+    ARCHIVED: "संग्रहीत",
+  };
+  return (
+    <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-8 sm:py-14">
+      <Link className="text-sm font-semibold text-emerald-800 underline underline-offset-4" href="/admin/dashboard">डैशबोर्ड पर लौटें</Link>
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+        <div><h1 className="text-3xl font-bold tracking-tight text-stone-950">कार्यकर्ता प्रबंधन</h1><p className="mt-2 text-sm text-stone-600">कार्यकर्ता प्रोफ़ाइल और पंजीकरण रिकॉर्ड खोजें और प्रबंधित करें।</p></div>
+        <Link className="inline-flex min-h-11 items-center rounded-xl bg-emerald-900 px-5 text-sm font-semibold text-white" href="/admin/karyakartas/new">नया कार्यकर्ता जोड़ें</Link>
+      </div>
+      <form className="mt-6 grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-[1fr_12rem_12rem_14rem_auto]" method="get">
+        <label className="sr-only" htmlFor="member-search">कार्यकर्ता खोजें</label>
+        <input className="min-h-11 rounded-lg border px-3 text-sm" defaultValue={q} id="member-search" maxLength={100} name="q" placeholder="नाम, पंजीकरण संख्या, राज्य, जिला या दायित्व" />
+        <label className="sr-only" htmlFor="member-state">राज्य</label><input className="min-h-11 rounded-lg border px-3 text-sm" defaultValue={state} id="member-state" maxLength={120} name="state" placeholder="राज्य" />
+        <label className="sr-only" htmlFor="member-district">जिला</label><input className="min-h-11 rounded-lg border px-3 text-sm" defaultValue={district} id="member-district" maxLength={120} name="district" placeholder="जिला" />
+        <label className="sr-only" htmlFor="member-status">स्थिति</label>
+        <select className="min-h-11 rounded-lg border px-3 text-sm" defaultValue={status} id="member-status" name="status"><option value="">सभी स्थितियाँ</option>{["DRAFT", "PENDING", "ACTIVE", "INACTIVE", "SUSPENDED", "REVOKED", "REJECTED", "EXPIRED", "ARCHIVED"].map((value) => <option key={value}>{value}</option>)}</select>
+        <button className="min-h-11 rounded-lg bg-emerald-900 px-5 text-sm font-semibold text-white" type="submit">खोजें</button>
+      </form>
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+          <thead className="bg-stone-50 text-xs tracking-wide text-stone-600"><tr><th className="px-4 py-3">कार्यकर्ता</th><th className="px-4 py-3">पंजीकरण</th><th className="px-4 py-3">दायित्व</th><th className="px-4 py-3">क्षेत्र</th><th className="px-4 py-3">स्थिति</th><th className="px-4 py-3">सार्वजनिक</th><th className="px-4 py-3">कार्यवाही</th></tr></thead>
+          <tbody className="divide-y divide-stone-100">{members.map((member) => <tr key={member.id}><td className="px-4 py-3 font-semibold text-stone-950">{member.name}</td><td className="px-4 py-3 font-mono text-xs">{member.regNo}</td><td className="px-4 py-3">{member.daitva}</td><td className="px-4 py-3">{[member.district, member.state].filter(Boolean).join(", ")}</td><td className="px-4 py-3"><span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold">{statusLabels[member.profileStatus] ?? member.profileStatus}</span></td><td className="px-4 py-3">{member.isPublicProfile ? "हाँ" : "नहीं"}</td><td className="px-4 py-3"><Link className="font-semibold text-emerald-900 underline" href={`/admin/karyakartas/${encodeURIComponent(member.id)}/edit`}>संपादित करें</Link></td></tr>)}</tbody>
+        </table>
+        {members.length === 0 ? <p className="p-8 text-center text-stone-600">इन फ़िल्टर से कोई कार्यकर्ता नहीं मिला।</p> : null}
+      </div>
+      <nav aria-label="कार्यकर्ता सूची पृष्ठ" className="mt-5 flex justify-center gap-4 text-sm">{page > 1 ? <Link href={{ pathname: "/admin/karyakartas", query: { q, status, page: String(page - 1) } }}>पिछला पृष्ठ</Link> : null}<span>पृष्ठ {page} / {totalPages} · कुल {total} रिकॉर्ड</span>{page < totalPages ? <Link href={{ pathname: "/admin/karyakartas", query: { q, status, page: String(page + 1) } }}>अगला पृष्ठ</Link> : null}</nav>
+    </section>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\admin\login\admin-login-form.tsx =====
+
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { AuthCard } from "@/components/ui/auth-card";
+import { ClientFormNotice } from "@/components/ui/client-form-notice";
+import { FormField, inputClassName } from "@/components/ui/form-field";
+import { Icon } from "@/components/ui/icon";
+
+export function AdminLoginForm() {
+  const router = useRouter();
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice("");
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+    const nextErrors: Record<string, string> = {};
+
+    if (!email) {
+      nextErrors.email = "कृपया प्रशासक का ईमेल दर्ज करें।";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      nextErrors.email = "कृपया सही ईमेल पता दर्ज करें।";
+    }
+    if (!password) nextErrors.password = "कृपया पासवर्ड दर्ज करें।";
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const result: unknown = await response.json();
+      const succeeded =
+        typeof result === "object" &&
+        result !== null &&
+        "success" in result &&
+        result.success === true;
+
+      if (response.ok && succeeded) {
+        router.replace("/admin/dashboard");
+        router.refresh();
+        return;
+      }
+
+      setNotice(
+        response.status === 429
+          ? "कई प्रयास किए गए हैं। कृपया कुछ देर बाद फिर कोशिश करें।"
+          : "ईमेल या पासवर्ड अमान्य है।",
+      );
+    } catch {
+      setNotice("लॉगिन अभी उपलब्ध नहीं है। कृपया फिर से प्रयास करें।");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <AuthCard eyebrow="प्रशासनिक पोर्टल">
+      <div className="mb-7">
+        <span className="flex size-12 items-center justify-center rounded-2xl border border-emerald-900/10 bg-emerald-50 text-emerald-900 lg:hidden">
+          <Icon name="shield" size={24} />
+        </span>
+        <p className="mt-5 text-xs font-bold tracking-[0.14em] text-orange-700 uppercase">
+          अधिकृत टीम
+        </p>
+        <h2 className="mt-2 text-3xl font-bold tracking-tight text-stone-950">
+          प्रशासनिक प्रवेश
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-stone-600">
+          संगठन के सुरक्षित प्रशासनिक पोर्टल में प्रवेश करें।
+        </p>
+      </div>
+
+      <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+        <FormField
+          error={errors.email}
+          id="email"
+          label="प्रशासक का ईमेल"
+          required
+        >
+          <input
+            aria-describedby={errors.email ? "email-error" : undefined}
+            aria-invalid={Boolean(errors.email)}
+            autoComplete="username"
+            className={inputClassName}
+            id="email"
+            name="email"
+            placeholder="admin@example.org"
+            required
+            type="email"
+          />
+        </FormField>
+
+        <FormField
+          error={errors.password}
+          id="password"
+          label="पासवर्ड"
+          required
+        >
+          <div className="relative">
+            <input
+              aria-describedby={errors.password ? "password-error" : undefined}
+              aria-invalid={Boolean(errors.password)}
+              autoComplete="current-password"
+              className={`${inputClassName} pr-12`}
+              id="password"
+              name="password"
+              placeholder="अपना पासवर्ड दर्ज करें"
+              required
+              type={passwordVisible ? "text" : "password"}
+            />
+            <button
+              aria-label={passwordVisible ? "पासवर्ड छिपाएँ" : "पासवर्ड दिखाएँ"}
+              aria-pressed={passwordVisible}
+              className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-stone-500 hover:text-emerald-900 focus-visible:outline-2 focus-visible:outline-emerald-800"
+              onClick={() => setPasswordVisible((visible) => !visible)}
+              type="button"
+            >
+              <Icon name={passwordVisible ? "eye-off" : "eye"} />
+            </button>
+          </div>
+        </FormField>
+
+        <ClientFormNotice message={notice} tone="warning" />
+        <button
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isSubmitting}
+          type="submit"
+        >
+          <Icon name="lock" size={18} />
+          {isSubmitting ? "प्रवेश हो रहा है…" : "सुरक्षित लॉगिन"}
+        </button>
+        <p className="text-center text-xs leading-5 text-stone-500">
+          केवल अधिकृत प्रशासनिक उपयोग के लिए
+        </p>
+      </form>
+
+      <div className="mt-7 border-t border-stone-100 pt-5 text-center">
+        <Link
+          className="text-sm font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-800"
+          href="/"
+        >
+          मुख्य पृष्ठ पर वापस जाएँ
+        </Link>
+      </div>
+    </AuthCard>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\admin\login\page.tsx =====
+
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { AdminLoginForm } from "@/app/admin/login/admin-login-form";
+import { PageSection } from "@/components/ui/page-section";
+import { getCurrentAdmin } from "@/lib/auth/require-admin";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "प्रशासनिक प्रवेश",
+};
+
+export default async function AdminLoginPage() {
+  const admin = await getCurrentAdmin();
+  if (admin) redirect("/admin/dashboard");
+
+  return (
+    <PageSection
+      description="संगठन के सुरक्षित प्रशासनिक पोर्टल में प्रवेश करें।"
+      eyebrow="RGRP प्रशासन"
+      title="प्रशासनिक प्रवेश"
+    >
+      <AdminLoginForm />
+    </PageSection>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\api\admin\karyakartas\registration-number\route.ts =====
+
+import { NextResponse } from "next/server";
+import { canManageKaryakarta, hasKaryakartaScope } from "@/lib/auth/admin-permissions";
+import { requireAdmin } from "@/lib/auth/require-admin";
+import { generateRegistrationNumber } from "@/lib/karyakarta-validation";
+import { prisma } from "@/lib/prisma";
+
+export async function POST(request: Request) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Authentication is required." }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  if (!canManageKaryakarta(admin.role)) {
+    return NextResponse.json({ error: "Not authorized." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "State and district are required." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("state" in body) ||
+    typeof body.state !== "string" ||
+    !("district" in body) ||
+    typeof body.district !== "string" ||
+    !body.state.trim() ||
+    !body.district.trim()
+  ) {
+    return NextResponse.json({ error: "State and district are required." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  const state = body.state.trim().slice(0, 120);
+  const district = body.district.trim().slice(0, 120);
+  if (!hasKaryakartaScope(admin, state, district)) {
+    return NextResponse.json({ error: "Not authorized for this territory." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+
+  try {
+    const registrationNumber = generateRegistrationNumber(state, district);
+    await prisma.adminActivity.create({
+      data: {
+        adminId: admin.id,
+        action: "KARYAKARTA_REGISTRATION_NUMBER_GENERATED",
+        entity: "Karyakarta",
+        metadata: { state, district },
+      },
+    });
+    return NextResponse.json({ registrationNumber }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    console.error("Registration-number generation failed", {
+      route: "/api/admin/karyakartas/registration-number",
+      code: "KARYAKARTA_REGISTRATION_NUMBER_FAILED",
+    });
+    return NextResponse.json({ error: "Unable to generate a registration number." }, { status: 500, headers: { "Cache-Control": "no-store" } });
+  }
+}
+
+===== FILE: C:\rgrp-portal\app\api\admin\karyakartas\route.ts =====
+
+import { NextResponse } from "next/server";
+import { KaryakartaProfileStatus, Prisma, RegistrationCardStatus } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/require-admin";
+import {
+  canManageKaryakarta,
+  canPublishContent,
+  hasKaryakartaScope,
+  karyakartaScopeWhere,
+} from "@/lib/auth/admin-permissions";
+import {
+  createKaryakartaSlug,
+  generateRegistrationNumber,
+  karyakartaInputSchema,
+} from "@/lib/karyakarta-validation";
+import { prisma } from "@/lib/prisma";
+
+const selection = {
+  id: true,
+  slug: true,
+  regNo: true,
+  name: true,
+  phone: true,
+  email: true,
+  designation: true,
+  daitva: true,
+  state: true,
+  district: true,
+  tehsil: true,
+  cityOrVillage: true,
+  photoUrl: true,
+  publicBio: true,
+  joiningDate: true,
+  appointmentStartDate: true,
+  appointmentEndDate: true,
+  isPublicProfile: true,
+  isEmergencyHidden: true,
+  isFeatured: true,
+  profileStatus: true,
+  displayOrder: true,
+  instagramUrl: true,
+  facebookUrl: true,
+  youtubeUrl: true,
+  whatsappContactUrl: true,
+  adminNotes: true,
+  archivedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  registrations: {
+    orderBy: { createdAt: "desc" as const },
+    select: {
+      id: true,
+      registrationNumber: true,
+      status: true,
+      issueDate: true,
+      expiryDate: true,
+      revokedReason: true,
+      createdAt: true,
+    },
+  },
+};
+
+function jsonError(error: string, status: number) {
+  return NextResponse.json(
+    { error },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+function validationError(issues: Array<{ path: PropertyKey[]; message: string }>) {
+  const fieldErrors: Record<string, string> = {};
+  for (const issue of issues) {
+    const field = issue.path[0];
+    if (typeof field === "string" && !fieldErrors[field]) {
+      fieldErrors[field] = issue.message;
+    }
+  }
+  return NextResponse.json(
+    { error: "Check the member details and try again.", fieldErrors },
+    { status: 400, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+function publicPaths(slug: string) {
+  revalidatePath("/saksham-karyakarta");
+  revalidatePath(`/saksham-karyakarta/${slug}`);
+  revalidatePath("/admin/karyakartas");
+  revalidatePath("/admin/dashboard");
+}
+
+export async function GET(request: Request) {
+  const admin = await requireAdmin();
+  if (!admin) return jsonError("Authentication is required.", 401);
+  if (!canManageKaryakarta(admin.role)) {
+    return jsonError("You are not authorized to manage karyakartas.", 403);
+  }
+
+  const params = new URL(request.url).searchParams;
+  const requestedPage = Number(params.get("page"));
+  const page = Math.max(
+    1,
+    Math.min(10_000, Number.isSafeInteger(requestedPage) ? requestedPage : 1),
+  );
+  const search = params.get("q")?.trim().slice(0, 100);
+  const status = params.get("status");
+  const state = params.get("state")?.trim();
+  const district = params.get("district")?.trim();
+  const filters: Prisma.KaryakartaWhereInput = {
+    ...(status && Object.values(KaryakartaProfileStatus).includes(status as KaryakartaProfileStatus)
+      ? { profileStatus: status as KaryakartaProfileStatus }
+      : {}),
+    ...(state ? { state } : {}),
+    ...(district ? { district } : {}),
+    ...(search ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { regNo: { contains: search.toUpperCase(), mode: "insensitive" } },
+            { state: { contains: search, mode: "insensitive" } },
+            { district: { contains: search, mode: "insensitive" } },
+            { daitva: { contains: search, mode: "insensitive" } },
+          ],
+        } : {}),
+  };
+  const where: Prisma.KaryakartaWhereInput = {
+    AND: [karyakartaScopeWhere(admin), filters],
+  };
+  let members;
+  let total;
+  try {
+    [members, total] = await prisma.$transaction([
+      prisma.karyakarta.findMany({
+        where,
+        select: selection,
+        orderBy: [{ updatedAt: "desc" }],
+        take: 50,
+        skip: (page - 1) * 50,
+      }),
+      prisma.karyakarta.count({ where }),
+    ]);
+  } catch {
+    console.error("Karyakarta list failed", {
+      route: "/api/admin/karyakartas",
+      code: "KARYAKARTA_LIST_FAILED",
+    });
+    return jsonError("Unable to load karyakartas right now.", 500);
+  }
+
+  return NextResponse.json(
+    { members, total, page, pageSize: 50 },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function POST(request: Request) {
+  const admin = await requireAdmin();
+  if (!admin) return jsonError("Authentication is required.", 401);
+  if (!canManageKaryakarta(admin.role)) {
+    return jsonError("You are not authorized to manage karyakartas.", 403);
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Invalid request body.", 400);
+  }
+  const parsed = karyakartaInputSchema.safeParse(body);
+  if (!parsed.success) return validationError(parsed.error.issues);
+
+  const input = parsed.data;
+  if (!hasKaryakartaScope(admin, input.state, input.district)) {
+    return jsonError("You are not authorized to manage this territory.", 403);
+  }
+  if (
+    (!canPublishContent(admin.role) &&
+      (input.profileStatus === "ACTIVE" ||
+        input.registrationStatus === "ACTIVE" ||
+        ["SUSPENDED", "REVOKED"].includes(input.profileStatus) ||
+        input.profileStatus === "REJECTED" ||
+        ["SUSPENDED", "REVOKED"].includes(input.registrationStatus))) ||
+    (input.registrationStatus === "ACTIVE" &&
+      input.profileStatus !== "ACTIVE")
+  ) {
+    return jsonError("This member requires authorized approval before activation.", 403);
+  }
+  if (
+    input.isPublicProfile &&
+    input.profileStatus !== "ACTIVE"
+  ) {
+    return jsonError("Only active member profiles can be marked public.", 400);
+  }
+
+  const registrationNumber =
+    input.registrationNumber ||
+    generateRegistrationNumber(input.state, input.district);
+  const slug = createKaryakartaSlug(input.name, registrationNumber);
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const member = await tx.karyakarta.create({
+        data: {
+          regNo: registrationNumber,
+          slug,
+          name: input.name,
+          phone: input.phone,
+          email: input.email || null,
+          designation: input.daitva,
+          daitva: input.daitva,
+          state: input.state,
+          district: input.district,
+          tehsil: input.tehsil || null,
+          cityOrVillage: input.cityOrVillage || null,
+          publicBio: input.publicBio || null,
+          joiningDate: input.joiningDate,
+          appointmentStartDate: input.appointmentStartDate,
+          appointmentEndDate: input.appointmentEndDate,
+          isEmergencyHidden: input.isEmergencyHidden,
+          isFeatured: input.isFeatured,
+          isPublicProfile:
+            input.profileStatus === "ACTIVE" && input.isPublicProfile,
+          profileStatus: input.profileStatus,
+          displayOrder: input.displayOrder,
+          instagramUrl: input.instagramUrl,
+          facebookUrl: input.facebookUrl,
+          youtubeUrl: input.youtubeUrl,
+          whatsappContactUrl: input.whatsappContactUrl,
+          adminNotes: input.adminNotes || null,
+          createdById: admin.id,
+          updatedById: admin.id,
+          status:
+            input.profileStatus === "ACTIVE"
+              ? "APPROVED"
+              : ["SUSPENDED", "REVOKED"].includes(input.profileStatus)
+                ? "BLOCKED"
+                : input.profileStatus === "REJECTED"
+                  ? "REJECTED"
+                : ["INACTIVE", "EXPIRED", "ARCHIVED"].includes(input.profileStatus)
+                  ? "INACTIVE"
+                  : "PENDING",
+          approvedAt: input.profileStatus === "ACTIVE" ? new Date() : null,
+          registrations: {
+            create: {
+              registrationNumber,
+              status: input.registrationStatus as RegistrationCardStatus,
+              issueDate: input.issueDate,
+              expiryDate: input.expiryDate,
+              revokedReason: input.registrationAdminReason || null,
+              createdById: admin.id,
+            },
+          },
+        },
+        select: selection,
+      });
+      await tx.adminActivity.create({
+        data: {
+          adminId: admin.id,
+          action: "KARYAKARTA_CREATED",
+          entity: "Karyakarta",
+          entityId: member.id,
+          metadata: {
+            profileStatus: input.profileStatus,
+            isEmergencyHidden: input.isEmergencyHidden,
+            isFeatured: input.isFeatured,
+            state: input.state,
+            district: input.district,
+          },
+        },
+      });
+      return member;
+    });
+    publicPaths(created.slug);
+    return NextResponse.json(
+      { member: created },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return jsonError("Phone, email, or registration number is already in use.", 409);
+    }
+    console.error("Karyakarta create failed", {
+      route: "/api/admin/karyakartas",
+      code: "KARYAKARTA_CREATE_FAILED",
+    });
+    return jsonError("Unable to save the member right now.", 500);
+  }
+}
+
+===== FILE: C:\rgrp-portal\app\api\auth\admin\login\route.ts =====
+
+import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { createAdminSession } from "@/lib/auth/admin-session";
+import { prisma } from "@/lib/prisma";
+import {
+  checkAdminLoginRateLimit,
+  clearAdminLoginFailures,
+  recordAdminLoginFailure,
+} from "@/lib/rate-limit/admin-login";
+import {
+  isRateLimitProviderAvailable,
+  rateLimitProviderUnavailableResponse,
+} from "@/lib/rate-limit/types";
+
+const loginSchema = z
+  .object({
+    email: z.string().trim().email().max(254),
+    password: z.string().min(1).max(1024),
+  })
+  .strict();
+
+const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
+
+function getRequestIp(request: Request): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const forwardedIp = forwardedFor?.split(",")[0]?.trim();
+  const realIp = request.headers.get("x-real-ip")?.trim();
+
+  return forwardedIp || realIp || "unknown";
+}
+
+export async function POST(request: Request) {
+  if (!isRateLimitProviderAvailable()) {
+    return rateLimitProviderUnavailableResponse();
+  }
+
+  const ip = getRequestIp(request);
+ const rateLimit = await checkAdminLoginRateLimit(ip);
+  if (!rateLimit.allowed) {
+    return Response.json(
+      {
+        success: false,
+        error: {
+          message: "बहुत अधिक प्रयास किए गए। कृपया कुछ देर बाद फिर प्रयास करें।",
+        },
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      },
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json(
+      { success: false, error: { message: "Invalid request." } },
+      { status: 400 },
+    );
+  }
+
+  const result = loginSchema.safeParse(body);
+  if (!result.success) {
+    return Response.json(
+      { success: false, error: { message: "Invalid request." } },
+      { status: 400 },
+    );
+  }
+
+  const email = result.data.email.toLowerCase();
+  const admin = await prisma.admin.findFirst({
+    where: { email, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      passwordHash: true,
+      role: true,
+      assignedState: true,
+      assignedDistrict: true,
+    },
+  });
+
+  const passwordMatches = admin
+    ? await bcrypt.compare(result.data.password, admin.passwordHash)
+    : false;
+
+  if (!admin || !passwordMatches) {
+    await recordAdminLoginFailure(ip);
+    return Response.json(
+      {
+        success: false,
+        error: { message: INVALID_CREDENTIALS_MESSAGE },
+      },
+      { status: 401 },
+    );
+  }
+
+  await clearAdminLoginFailures(ip);
+  await createAdminSession({
+    id: admin.id,
+    name: admin.name,
+    email: admin.email,
+    role: admin.role,
+    assignedState: admin.assignedState,
+    assignedDistrict: admin.assignedDistrict,
+  });
+
+  return Response.json({ success: true });
+}
+
+===== FILE: C:\rgrp-portal\app\api\karyakarta\apply\route.ts =====
+
+import { randomInt } from "node:crypto";
+import { KaryakartaApplicationStatus, Prisma } from "@prisma/client";
+import { karyakartaApplicationSchema } from "@/lib/schemas/karyakarta-application";
+import { prisma } from "@/lib/prisma";
+import {
+  checkJoinApplicationRateLimit,
+  isJoinApplicationRateLimitAvailable,
+} from "@/lib/rate-limit/join-application";
+import type { RateLimitResult } from "@/lib/rate-limit/types";
+
+const MAX_REQUEST_SIZE = 32 * 1024;
+const INVALID_APPLICATION_MESSAGE = "कृपया सभी आवश्यक जानकारी सही भरें।";
+const REFERENCE_ERROR_MESSAGE =
+  "आवेदन संदर्भ बनाने में समस्या हुई। कृपया फिर प्रयास करें।";
+const SERVICE_UNAVAILABLE_MESSAGE =
+  "सेवा अस्थायी रूप से उपलब्ध नहीं है। कृपया थोड़ी देर बाद फिर प्रयास करें।";
+const APPLICATION_ERROR_MESSAGE =
+  "आवेदन जमा नहीं हो सका। कृपया बाद में फिर प्रयास करें।";
+const MAX_REFERENCE_ATTEMPTS = 5;
+const UNAVAILABLE_PRISMA_CODES = new Set([
+  "P1001",
+  "P1002",
+  "P1008",
+  "P1017",
+  "P2024",
+  "P2037",
+]);
+
+function requestIp(request: Request): string {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim().slice(0, 64) || "unknown";
+}
+
+function createApplicationReference(): string {
+  const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const randomNumber = randomInt(10_000, 100_000);
+  return `RGRP-${date}-${randomNumber}`;
+}
+
+export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_REQUEST_SIZE) {
+    return Response.json(
+      { success: false, error: { message: INVALID_APPLICATION_MESSAGE } },
+      { status: 400 },
+    );
+  }
+  if (!isJoinApplicationRateLimitAvailable()) {
+    return Response.json(
+      { success: false, error: { message: SERVICE_UNAVAILABLE_MESSAGE } },
+      { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+    );
+  }
+  let rateLimit: RateLimitResult;
+  try {
+    rateLimit = await checkJoinApplicationRateLimit(requestIp(request));
+  } catch {
+    console.error(JSON.stringify({
+      event: "karyakarta_application_rate_limit_failed",
+      route: "/api/karyakarta/apply",
+      code: "KARYAKARTA_APPLICATION_RATE_LIMIT_FAILED",
+    }));
+    return Response.json(
+      { success: false, error: { message: SERVICE_UNAVAILABLE_MESSAGE } },
+      { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+    );
+  }
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { success: false, error: { message: "बहुत अधिक आवेदन प्रयास हुए हैं। कृपया कुछ देर बाद फिर प्रयास करें।" } },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+          "Cache-Control": "no-store",
+        },
+      },
+    );
+  }
+
+  let body: unknown;
+  try {
+    const rawBody = await request.text();
+    if (rawBody.length > MAX_REQUEST_SIZE) {
+      return Response.json(
+        { success: false, error: { message: INVALID_APPLICATION_MESSAGE } },
+        { status: 400 },
+      );
+    }
+    body = JSON.parse(rawBody) as unknown;
+  } catch {
+    return Response.json(
+      { success: false, error: { message: INVALID_APPLICATION_MESSAGE } },
+      { status: 400 },
+    );
+  }
+
+  const parsed = karyakartaApplicationSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json(
+      { success: false, error: { message: INVALID_APPLICATION_MESSAGE } },
+      { status: 400 },
+    );
+  }
+
+  if (parsed.data.website.trim()) {
+    return Response.json(
+      { success: false, error: { message: INVALID_APPLICATION_MESSAGE } },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const application = { ...parsed.data };
+  Reflect.deleteProperty(application, "consent");
+  Reflect.deleteProperty(application, "website");
+  const dateOfBirth = new Date(`${application.dateOfBirth}T00:00:00.000Z`);
+
+  for (let attempt = 0; attempt < MAX_REFERENCE_ATTEMPTS; attempt += 1) {
+    try {
+      const savedApplication = await prisma.karyakartaApplication.create({
+        data: {
+          ...application,
+          dateOfBirth,
+          status: KaryakartaApplicationStatus.PENDING,
+          applicationReference: createApplicationReference(),
+        },
+        select: {
+          applicationReference: true,
+          fullName: true,
+          status: true,
+        },
+      });
+
+      return Response.json(
+        {
+          success: true,
+          data: savedApplication,
+        },
+        {
+          status: 201,
+          headers: { "Cache-Control": "no-store" },
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        attempt < MAX_REFERENCE_ATTEMPTS - 1
+      ) {
+        continue;
+      }
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        const code = /^[A-Z]\d{4}$/.test(error.code) ? error.code : undefined;
+        const event = {
+          event: "karyakarta_application_create_failed",
+          category:
+            code === "P2002" ? "reference_collision" : "prisma_known_request",
+          ...(code ? { prismaCode: code } : {}),
+        };
+        console.error(JSON.stringify(event));
+
+        if (code === "P2002") {
+          return Response.json(
+            { success: false, error: { message: REFERENCE_ERROR_MESSAGE } },
+            { status: 409, headers: { "Cache-Control": "no-store" } },
+          );
+        }
+
+        if (code && UNAVAILABLE_PRISMA_CODES.has(code)) {
+          return Response.json(
+            {
+              success: false,
+              error: { message: SERVICE_UNAVAILABLE_MESSAGE },
+            },
+            { status: 503, headers: { "Cache-Control": "no-store" } },
+          );
+        }
+
+        return Response.json(
+          { success: false, error: { message: APPLICATION_ERROR_MESSAGE } },
+          { status: 500, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+
+      const category =
+        error instanceof Prisma.PrismaClientValidationError
+          ? "prisma_validation"
+          : error instanceof Prisma.PrismaClientInitializationError
+            ? "prisma_initialization"
+            : error instanceof Prisma.PrismaClientUnknownRequestError
+              ? "prisma_unknown_request"
+              : error instanceof Prisma.PrismaClientRustPanicError
+                ? "prisma_engine_panic"
+                : "non_prisma_error";
+      const initializationCode =
+        error instanceof Prisma.PrismaClientInitializationError &&
+        typeof error.errorCode === "string" &&
+        /^[A-Z]\d{4}$/.test(error.errorCode)
+          ? error.errorCode
+          : undefined;
+      console.error(
+        JSON.stringify({
+          event: "karyakarta_application_create_failed",
+          category,
+          ...(initializationCode ? { prismaCode: initializationCode } : {}),
+        }),
+      );
+
+      if (
+        initializationCode &&
+        UNAVAILABLE_PRISMA_CODES.has(initializationCode)
+      ) {
+        return Response.json(
+          { success: false, error: { message: SERVICE_UNAVAILABLE_MESSAGE } },
+          { status: 503, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+
+      return Response.json(
+        { success: false, error: { message: APPLICATION_ERROR_MESSAGE } },
+        { status: 500, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
+
+  console.error(
+    JSON.stringify({
+      event: "karyakarta_application_create_failed",
+      category: "reference_collision",
+      prismaCode: "P2002",
+    }),
+  );
+  return Response.json(
+    { success: false, error: { message: REFERENCE_ERROR_MESSAGE } },
+    { status: 409, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\api\karyakarta\upload\route.ts =====
+
+import { UploadStatus } from "@prisma/client";
+import { handleDocumentUpload } from "@/lib/karyakarta-upload-handler";
+import {
+  createStorageKey,
+  deletePrivateFile,
+  isPrivateStorageAvailable,
+  saveEncryptedPrivateFile,
+} from "@/lib/private-uploads";
+import { prisma } from "@/lib/prisma";
+import { checkDocumentUploadRateLimit } from "@/lib/rate-limit/document-upload";
+import { isRateLimitProviderAvailable } from "@/lib/rate-limit/types";
+
+export async function POST(request: Request) {
+  return handleDocumentUpload(request, {
+    isRateLimitProviderAvailable,
+    isPrivateStorageAvailable,
+    checkRateLimit: checkDocumentUploadRateLimit,
+    findApplication: (applicationReference, mobile) =>
+      prisma.karyakartaApplication.findFirst({
+        where: { applicationReference, mobile },
+        select: {
+          id: true,
+          photoPath: true,
+          aadhaarPath: true,
+        },
+      }),
+    createStorageKey: (extension, applicationReference) =>
+      createStorageKey(
+        "applications",
+        extension,
+        true,
+        applicationReference,
+      ),
+    saveEncryptedPrivateFile,
+    updateApplication: (id, updates) =>
+      prisma.karyakartaApplication.update({
+        where: { id },
+        data: {
+          ...updates,
+          uploadStatus: UploadStatus.PENDING,
+          documentReviewReason: null,
+          verifiedByAdminId: null,
+          verifiedAt: null,
+        },
+        select: {
+          photoPath: true,
+          aadhaarPath: true,
+          uploadStatus: true,
+        },
+      }),
+    deletePrivateFile,
+    logUnexpectedError: (metadata) => {
+      console.error(
+        JSON.stringify({
+          event: "karyakarta_documents_upload_failed",
+          route: "/api/karyakarta/upload",
+          code: "UPLOAD_FAILED",
+          ...metadata,
+        }),
+      );
+    },
+  });
+}
+
+===== FILE: C:\rgrp-portal\app\karyakarta\dashboard\page.tsx =====
+
+import type { Metadata } from "next";
+import { PlaceholderPage } from "@/components/public/placeholder-page";
+
+export const metadata: Metadata = {
+  title: "Karyakarta Dashboard",
+};
+
+export default function KaryakartaDashboardPage() {
+  return (
+    <PlaceholderPage
+      title="Karyakarta Dashboard"
+      description="The karyakarta dashboard will be available in a later phase."
+    />
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\karyakarta\login\karyakarta-login-form.tsx =====
+
+"use client";
+
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { AuthCard } from "@/components/ui/auth-card";
+import { ClientFormNotice } from "@/components/ui/client-form-notice";
+import { FormField, inputClassName } from "@/components/ui/form-field";
+import { Icon } from "@/components/ui/icon";
+
+export function KaryakartaLoginForm() {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState("");
+  const [requestShown, setRequestShown] = useState(false);
+
+  function clearMockRequest() {
+    setNotice("");
+    setRequestShown(false);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice("");
+    const formData = new FormData(event.currentTarget);
+    const registrationNumber = String(
+      formData.get("registrationNumber") ?? "",
+    ).trim();
+    const mobile = String(formData.get("mobile") ?? "").trim();
+    const nextErrors: Record<string, string> = {};
+
+    if (!registrationNumber) {
+      nextErrors.registrationNumber = "कृपया पंजीकरण संख्या दर्ज करें।";
+    }
+    if (!mobile) {
+      nextErrors.mobile = "कृपया मोबाइल नंबर दर्ज करें।";
+    } else if (!/^[6-9]\d{9}$/.test(mobile)) {
+      nextErrors.mobile = "कृपया 10 अंकों का सही मोबाइल नंबर दर्ज करें।";
+    }
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setRequestShown(true);
+    setNotice("OTP सुविधा सुरक्षित बैकएंड कनेक्शन के बाद सक्रिय होगी।");
+  }
+
+  return (
+    <AuthCard eyebrow="कार्यकर्ता पोर्टल">
+      <div className="mb-7">
+        <span className="flex size-12 items-center justify-center rounded-2xl border border-emerald-900/10 bg-emerald-50 text-emerald-900 lg:hidden">
+          <Icon name="user" size={24} />
+        </span>
+        <p className="mt-5 text-xs font-bold tracking-[0.14em] text-orange-700 uppercase">
+          सदस्य प्रवेश
+        </p>
+        <h2 className="mt-2 text-3xl font-bold tracking-tight text-stone-950">
+          कार्यकर्ता पोर्टल प्रवेश
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-stone-600">
+          अपनी पंजीकरण संख्या और पंजीकृत मोबाइल नंबर दर्ज करें।
+        </p>
+      </div>
+
+      <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+        <FormField
+          error={errors.registrationNumber}
+          hint="उदाहरण: RGRP-2026-001"
+          id="registrationNumber"
+          label="पंजीकरण संख्या"
+          required
+        >
+          <input
+            aria-describedby={`registrationNumber-hint${errors.registrationNumber ? " registrationNumber-error" : ""}`}
+            aria-invalid={Boolean(errors.registrationNumber)}
+            autoCapitalize="characters"
+            autoComplete="off"
+            className={`${inputClassName} font-mono tracking-wide`}
+            id="registrationNumber"
+            name="registrationNumber"
+            onChange={() => {
+              setErrors((current) => ({
+                ...current,
+                registrationNumber: "",
+              }));
+              clearMockRequest();
+            }}
+            placeholder="RGRP-2026-001"
+            required
+          />
+        </FormField>
+        <FormField
+          error={errors.mobile}
+          hint="10 अंकों का मोबाइल नंबर दर्ज करें।"
+          id="mobile"
+          label="मोबाइल नंबर"
+          required
+        >
+          <input
+            aria-describedby={`mobile-hint${errors.mobile ? " mobile-error" : ""}`}
+            aria-invalid={Boolean(errors.mobile)}
+            autoComplete="tel-national"
+            className={inputClassName}
+            id="mobile"
+            inputMode="numeric"
+            maxLength={10}
+            name="mobile"
+            onChange={() => {
+              setErrors((current) => ({ ...current, mobile: "" }));
+              clearMockRequest();
+            }}
+            placeholder="उदाहरण: 9876543210"
+            required
+            type="tel"
+          />
+        </FormField>
+
+        {requestShown ? (
+          <FormField
+            hint="यह UI नमूना है; OTP जारी या सत्यापित नहीं किया गया है।"
+            id="otp"
+            label="OTP"
+          >
+            <input
+              aria-describedby="otp-hint"
+              autoComplete="one-time-code"
+              className={`${inputClassName} cursor-not-allowed bg-stone-100`}
+              disabled
+              id="otp"
+              inputMode="numeric"
+              placeholder="OTP सुविधा अभी उपलब्ध नहीं है"
+              type="text"
+            />
+          </FormField>
+        ) : null}
+
+        <ClientFormNotice message={notice} tone="warning" />
+        <button
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800"
+          type="submit"
+        >
+          OTP प्राप्त करें
+        </button>
+      </form>
+
+      <div className="mt-7 space-y-4 border-t border-stone-100 pt-5">
+        <p className="text-center text-sm text-stone-600">
+          नए सदस्य हैं?{" "}
+          <Link
+            className="font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-800"
+            href="/join"
+          >
+            पंजीकरण करें
+          </Link>
+        </p>
+        <p className="text-center text-sm">
+          <Link
+            className="font-semibold text-stone-600 underline decoration-stone-300 underline-offset-4 hover:text-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-800"
+            href="/verify"
+          >
+            पहचान सत्यापित करें
+          </Link>
+        </p>
+      </div>
+    </AuthCard>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\karyakarta\login\page.tsx =====
+
+import type { Metadata } from "next";
+import { KaryakartaLoginForm } from "@/app/karyakarta/login/karyakarta-login-form";
+import { PageSection } from "@/components/ui/page-section";
+
+export const metadata: Metadata = {
+  title: "कार्यकर्ता पोर्टल प्रवेश",
+};
+
+export default function KaryakartaLoginPage() {
+  return (
+    <PageSection
+      description="कार्यकर्ताओं के लिए सदस्य पोर्टल का सुरक्षित प्रवेश।"
+      eyebrow="RGRP सदस्य पोर्टल"
+      title="कार्यकर्ता पोर्टल प्रवेश"
+    >
+      <KaryakartaLoginForm />
+    </PageSection>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\karyakarta\upload-documents\document-upload-form.tsx =====
+
+"use client";
+
+import Link from "next/link";
+import { useRef, useState, type FormEvent } from "react";
+import {
+  acquireUploadLock,
+  getUploadErrorMessage,
+} from "@/lib/document-upload-client";
+
+export function DocumentUploadForm() {
+  const uploadLock = useRef(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!acquireUploadLock(uploadLock)) return;
+    const form = event.currentTarget;
+    setIsUploading(true);
+    setMessage("");
+    setIsError(false);
+
+    try {
+      const response = await fetch("/api/karyakarta/upload", {
+        method: "POST",
+        body: new FormData(form),
+      });
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        setIsError(true);
+        setMessage(getUploadErrorMessage(response.status, body));
+        return;
+      }
+      const body: unknown = await response.json();
+      if (
+        typeof body !== "object" ||
+        body === null ||
+        !("success" in body) ||
+        body.success !== true
+      ) {
+        throw new Error("upload_failed");
+      }
+      form.reset();
+      setMessage("आपके दस्तावेज़ समीक्षा के लिए भेज दिए गए हैं।");
+    } catch {
+      setIsError(true);
+      setMessage(
+        "दस्तावेज़ अपलोड नहीं हो सके। कृपया जानकारी और फ़ाइलें जाँचकर फिर प्रयास करें।",
+      );
+    } finally {
+      uploadLock.current = false;
+      setIsUploading(false);
+    }
+  }
+
+  return (
+    <form
+      className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8"
+      encType="multipart/form-data"
+      onSubmit={handleSubmit}
+    >
+      <label className="block">
+        <span className="mb-2 block text-sm font-semibold text-stone-800">
+          Application Reference / आवेदन संदर्भ संख्या
+        </span>
+        <input
+          autoComplete="off"
+          className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm outline-none focus:border-emerald-800 focus:ring-4 focus:ring-emerald-800/10"
+          maxLength={20}
+          name="applicationReference"
+          placeholder="RGRP-YYYYMMDD-12345"
+          required
+        />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-sm font-semibold text-stone-800">
+          Registered Mobile Number / आवेदन में पंजीकृत मोबाइल नंबर
+        </span>
+        <input
+          autoComplete="tel"
+          className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm outline-none focus:border-emerald-800 focus:ring-4 focus:ring-emerald-800/10"
+          inputMode="tel"
+          maxLength={16}
+          name="mobile"
+          required
+          type="tel"
+        />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-sm font-semibold text-stone-800">
+          फोटो (JPG/PNG, अधिकतम 2 MB)
+        </span>
+        <input
+          accept="image/jpeg,image/png"
+          className="block w-full rounded-xl border border-stone-200 bg-white p-3 text-sm text-stone-700"
+          name="photo"
+          type="file"
+        />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-sm font-semibold text-stone-800">
+          Aadhaar Document / आधार दस्तावेज़ (JPG/PNG/PDF, अधिकतम 2 MB)
+        </span>
+        <input
+          accept="image/jpeg,image/png,application/pdf"
+          className="block w-full rounded-xl border border-stone-200 bg-white p-3 text-sm text-stone-700"
+          name="aadhaar"
+          type="file"
+        />
+      </label>
+      {isUploading ? (
+        <div
+          aria-label="दस्तावेज़ अपलोड प्रगति"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuetext="दस्तावेज़ अपलोड हो रहे हैं"
+          className="h-2 overflow-hidden rounded-full bg-emerald-100"
+          role="progressbar"
+        >
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-emerald-800" />
+        </div>
+      ) : null}
+      <p className="text-xs leading-5 text-stone-500">
+        केवल अपने आवेदन के दस्तावेज़ चुनें। आवेदन संदर्भ या स्थिति की जानकारी के
+        लिए{" "}
+        <Link
+          className="font-semibold text-emerald-800 underline underline-offset-2"
+          href="/application-status"
+        >
+          आवेदन स्थिति देखें
+        </Link>{" "}
+        पृष्ठ पर जाएँ।
+      </p>
+      {message ? (
+        <p
+          className={`text-sm ${isError ? "text-red-700" : "text-emerald-800"}`}
+          role={isError ? "alert" : "status"}
+        >
+          {message}
+        </p>
+      ) : null}
+      <button
+        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-900 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        disabled={isUploading}
+        type="submit"
+      >
+        {isUploading ? "दस्तावेज़ अपलोड हो रहे हैं…" : "दस्तावेज़ अपलोड करें"}
+      </button>
+    </form>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\karyakarta\upload-documents\page.tsx =====
+
+import type { Metadata } from "next";
+import { DocumentUploadForm } from "@/app/karyakarta/upload-documents/document-upload-form";
+import { PageSection } from "@/components/ui/page-section";
+
+export const metadata: Metadata = {
+  title: "कार्यकर्ता दस्तावेज़ अपलोड",
+};
+
+export default function UploadDocumentsPage() {
+  return (
+    <PageSection
+      description="यह केवल आपके अपने आवेदन के लिए है। आवेदन संदर्भ और पंजीकृत मोबाइल नंबर से सत्यापन आवश्यक है।"
+      eyebrow="कार्यकर्ता / आवेदक"
+      title="कार्यकर्ता दस्तावेज़ अपलोड"
+    >
+      <DocumentUploadForm />
+    </PageSection>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\saksham-karyakarta\directory-filters.tsx =====
+
+"use client";
+
+import Link from "next/link";
+type DirectoryFiltersProps = {
+  states: string[];
+  districts: Array<{ state: string; district: string }>;
+  daitvas: string[];
+  values: {
+    q: string;
+    state: string;
+    district: string;
+    daitva: string;
+    sort: string;
+  };
+};
+
+export function DirectoryFilters({
+  states,
+  districts,
+  daitvas,
+  values,
+}: DirectoryFiltersProps) {
+  const availableDistricts = values.state
+    ? districts.filter((item) => item.state === values.state)
+    : districts;
+
+  return (
+    <form className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-6" method="get">
+      <label className="lg:col-span-2">
+        <span className="mb-1 block text-sm font-semibold text-stone-700">कार्यकर्ता खोजें</span>
+        <input
+          className="min-h-11 w-full rounded-xl border border-stone-300 px-3 text-sm"
+          defaultValue={values.q}
+          maxLength={100}
+          name="q"
+          placeholder="नाम, पंजीकरण संख्या या दायित्व"
+          type="search"
+        />
+      </label>
+      <label>
+        <span className="mb-1 block text-sm font-semibold text-stone-700">राज्य</span>
+        <select className="min-h-11 w-full rounded-xl border border-stone-300 px-3 text-sm" defaultValue={values.state} name="state">
+          <option value="">सभी राज्य</option>
+          {states.map((state) => <option key={state} value={state}>{state}</option>)}
+        </select>
+      </label>
+      <label>
+        <span className="mb-1 block text-sm font-semibold text-stone-700">जिला</span>
+        <select className="min-h-11 w-full rounded-xl border border-stone-300 px-3 text-sm" defaultValue={values.district} name="district">
+          <option value="">सभी जिले</option>
+          {availableDistricts.map(({ state, district }) => (
+            <option key={`${state}-${district}`} value={district}>{district}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span className="mb-1 block text-sm font-semibold text-stone-700">दायित्व</span>
+        <select className="min-h-11 w-full rounded-xl border border-stone-300 px-3 text-sm" defaultValue={values.daitva} name="daitva">
+          <option value="">सभी दायित्व</option>
+          {daitvas.map((daitva) => <option key={daitva} value={daitva}>{daitva}</option>)}
+        </select>
+      </label>
+      <label>
+        <span className="mb-1 block text-sm font-semibold text-stone-700">क्रम</span>
+        <select className="min-h-11 w-full rounded-xl border border-stone-300 px-3 text-sm" defaultValue={values.sort} name="sort">
+          <option value="name">नाम के अनुसार</option>
+          <option value="recent">हाल ही में अपडेट</option>
+        </select>
+      </label>
+      <div className="flex items-end gap-2 lg:col-span-6">
+        <button className="min-h-11 rounded-xl bg-emerald-900 px-5 text-sm font-semibold text-white hover:bg-emerald-800" type="submit">फ़िल्टर करें</button>
+        <Link className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 px-5 text-sm font-semibold text-stone-700 hover:bg-stone-50" href="/saksham-karyakarta">फ़िल्टर हटाएँ</Link>
+      </div>
+    </form>
+  );
+}
+
+===== FILE: C:\rgrp-portal\app\saksham-karyakarta\page.tsx =====
+
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { DirectoryFilters } from "@/app/saksham-karyakarta/directory-filters";
+import { hi } from "@/lib/i18n/hi";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "सक्षम कार्यकर्ता",
+  description: "राष्ट्रीय गौ रक्षा परिषद के सत्यापित कार्यकर्ता",
+  alternates: { canonical: "/saksham-karyakarta" },
+};
+
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function SakshamKaryakartaPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const value = (key: string) =>
+    typeof params[key] === "string" ? (params[key] as string).trim() : "";
+  const q = value("q").slice(0, 100);
+  const state = value("state").slice(0, 120);
+  const district = value("district").slice(0, 120);
+  const daitva = value("daitva").slice(0, 120);
+  const sort = value("sort") === "recent" ? "recent" : "name";
+  const page = Math.max(1, Math.min(10000, Number(value("page")) || 1));
+  const pageSize = 24;
+  const publicEligibility = {
+    profileStatus: "ACTIVE" as const,
+    isPublicProfile: true,
+    isEmergencyHidden: false,
+    archivedAt: null,
+    registrations: {
+      some: {
+        status: "ACTIVE" as const,
+        OR: [{ expiryDate: null }, { expiryDate: { gt: new Date() } }],
+      },
+    },
+  };
+  const where = {
+    ...publicEligibility,
+    ...(state ? { state } : {}),
+    ...(district ? { district } : {}),
+    ...(daitva ? { daitva } : {}),
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { regNo: { contains: q.toUpperCase(), mode: "insensitive" as const } },
+            { daitva: { contains: q, mode: "insensitive" as const } },
+            { state: { contains: q, mode: "insensitive" as const } },
+            { district: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  let members: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    daitva: string | null;
+    state: string | null;
+    district: string | null;
+    profilePhotoPath: string | null;
+  }> = [];
+  let total = 0;
+  let states: string[] = [];
+  let districts: Array<{ state: string; district: string }> = [];
+  let daitvas: string[] = [];
+  let failed = false;
+  try {
+    const [results, count, stateOptions, districtOptions, dutyOptions] =
+      await prisma.$transaction([
+        prisma.karyakarta.findMany({
+          where,
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            daitva: true,
+            state: true,
+            district: true,
+            profilePhotoPath: true,
+          },
+          orderBy:
+            sort === "name"
+              ? [{ name: "asc" }, { displayOrder: "asc" }]
+              : [{ updatedAt: "desc" }],
+          take: pageSize,
+          skip: (page - 1) * pageSize,
+        }),
+        prisma.karyakarta.count({ where }),
+        prisma.karyakarta.findMany({
+          where: { ...publicEligibility, state: { not: null } },
+          distinct: ["state"],
+          select: { state: true },
+          orderBy: { state: "asc" },
+        }),
+        prisma.karyakarta.findMany({
+          where: { ...publicEligibility, state: { not: null }, district: { not: null } },
+          distinct: ["state", "district"],
+          select: { state: true, district: true },
+          orderBy: [{ state: "asc" }, { district: "asc" }],
+        }),
+        prisma.karyakarta.findMany({
+          where: { ...publicEligibility, daitva: { not: null } },
+          distinct: ["daitva"],
+          select: { daitva: true },
+          orderBy: { daitva: "asc" },
+        }),
+      ]);
+    members = results;
+    total = count;
+    states = stateOptions.flatMap((item) => item.state ? [item.state] : []);
+    districts = districtOptions.flatMap((item) =>
+      item.state && item.district ? [{ state: item.state, district: item.district }] : [],
+    );
+    daitvas = dutyOptions.flatMap((item) => item.daitva ? [item.daitva] : []);
+  } catch {
+    failed = true;
+    console.error("Public karyakarta directory read failed", {
+      route: "/saksham-karyakarta",
+      code: "PUBLIC_KARYAKARTA_DIRECTORY_FAILED",
+    });
+  }
+
+  const filters = { q, state, district, daitva, sort };
+  const totalPages = Math.ceil(total / pageSize);
+  const profileHref = (slug: string) => `/saksham-karyakarta/${encodeURIComponent(slug)}`;
+  return (
+    <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-8 sm:py-14">
+      <header className="mb-8 rounded-3xl bg-emerald-950 px-6 py-10 text-white sm:px-10">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-200">राष्ट्रीय गौ रक्षा परिषद</p>
+        <h1 className="mt-3 text-3xl font-bold sm:text-4xl">सक्षम कार्यकर्ता</h1>
+        <p className="mt-3 max-w-2xl text-sm text-emerald-100/85">राष्ट्रीय गौ रक्षा परिषद के सत्यापित कार्यकर्ता</p>
+      </header>
+      <DirectoryFilters states={states} districts={districts} daitvas={daitvas} values={filters} />
+
+      {failed ? (
+        <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950" role="status">
+          कार्यकर्ता सूची अभी उपलब्ध नहीं है। कृपया कुछ देर बाद फिर प्रयास करें।
+        </div>
+      ) : members.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-10 text-center">
+          <h2 className="text-xl font-semibold text-stone-900">कोई कार्यकर्ता नहीं मिला</h2>
+          <p className="mt-2 text-stone-600">खोज या फ़िल्टर बदलकर देखें।</p>
+        </div>
+      ) : (
+        <>
+          <p className="mt-6 text-sm text-stone-600">{total.toLocaleString("hi-IN")} सत्यापित कार्यकर्ता</p>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {members.map((member) => (
+              <article className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm" key={member.id}>
+                <div className="flex items-center gap-4 p-5">
+                  {member.profilePhotoPath ? (
+                    <Image
+                      alt={`${member.name} का प्रोफ़ाइल चित्र`}
+                      className="h-20 w-20 rounded-full object-cover"
+                      height={80}
+                      src={`/api/saksham-karyakarta/${encodeURIComponent(member.slug)}/photo`}
+                      width={80}
+                    />
+                  ) : (
+                    <div aria-hidden="true" className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-2xl font-bold text-emerald-900">
+                      {member.name.slice(0, 1)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h2 className="truncate text-lg font-bold text-stone-950">{member.name}</h2>
+                    <p className="mt-1 text-sm text-stone-700">{member.daitva}</p>
+                    <p className="mt-1 text-sm text-stone-500">{[member.district, member.state].filter(Boolean).join(", ")}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between border-t border-stone-100 px-5 py-4">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                    <span aria-hidden="true">✓</span> {hi.common.verified}
+                  </span>
+                  <Link className="text-sm font-semibold text-emerald-900 underline-offset-4 hover:underline" href={profileHref(member.slug)}>प्रोफ़ाइल देखें</Link>
+                </div>
+              </article>
+            ))}
+          </div>
+          {totalPages > 1 ? (
+            <nav aria-label="कार्यकर्ता सूची पृष्ठ" className="mt-8 flex justify-center gap-3">
+              {page > 1 ? <Link className="rounded-lg border px-4 py-2 text-sm font-semibold" href={{ pathname: "/saksham-karyakarta", query: { ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)), page: String(page - 1) } }}>पिछला पृष्ठ</Link> : null}
+              <span className="px-3 py-2 text-sm text-stone-600">पृष्ठ {page} / {totalPages}</span>
+              {page < totalPages ? <Link className="rounded-lg border px-4 py-2 text-sm font-semibold" href={{ pathname: "/saksham-karyakarta", query: { ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)), page: String(page + 1) } }}>अगला पृष्ठ</Link> : null}
+            </nav>
+          ) : null}
+        </>
+      )}
+    </main>
+  );
+}
