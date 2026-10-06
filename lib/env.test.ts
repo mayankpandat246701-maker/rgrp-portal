@@ -16,6 +16,8 @@ const validProductionEnvironment = {
   SUPABASE_URL: "https://project.example.test",
   SUPABASE_SECRET_KEY: "synthetic-test-key",
   SUPABASE_STORAGE_BUCKET: "synthetic-test-bucket",
+  BLOB_STORE_ID: "store_syntheticprivate",
+  BLOB_PUBLIC__STORE_ID: "store_syntheticpublic",
   RATE_LIMIT_PROVIDER: "upstash",
   UPSTASH_REDIS_REST_URL: "https://redis.example.test",
   UPSTASH_REDIS_REST_TOKEN: "synthetic-test-token",
@@ -73,14 +75,18 @@ test("reports missing Supabase storage variables by name", () => {
   );
 });
 
-test("reports missing Vercel Blob tokens by name", () => {
+test("reports missing Vercel Blob store authentication by name", () => {
   assertInvalidConfiguration(
-    { STORAGE_PROVIDER: "vercel-blob" },
-    "BLOB_READ_WRITE_TOKEN, BLOB_PUBLIC_READ_WRITE_TOKEN",
+    {
+      STORAGE_PROVIDER: "vercel-blob",
+      BLOB_STORE_ID: undefined,
+      BLOB_PUBLIC__STORE_ID: undefined,
+    },
+    "BLOB_STORE_ID, BLOB_PUBLIC__STORE_ID",
   );
 });
 
-test("accepts a valid Vercel Blob production configuration", () => {
+test("accepts a valid OIDC-based Vercel Blob production configuration", () => {
   assert.doesNotThrow(() =>
     parseProductionEnvironment({
       ...validProductionEnvironment,
@@ -88,9 +94,36 @@ test("accepts a valid Vercel Blob production configuration", () => {
       SUPABASE_URL: undefined,
       SUPABASE_SECRET_KEY: undefined,
       SUPABASE_STORAGE_BUCKET: undefined,
+      BLOB_STORE_ID: "store_private123",
+      BLOB_PUBLIC__STORE_ID: "store_public456",
+    }),
+  );
+});
+
+test("accepts a token-based Vercel Blob production configuration", () => {
+  assert.doesNotThrow(() =>
+    parseProductionEnvironment({
+      ...validProductionEnvironment,
+      STORAGE_PROVIDER: "vercel-blob",
+      SUPABASE_URL: undefined,
+      SUPABASE_SECRET_KEY: undefined,
+      SUPABASE_STORAGE_BUCKET: undefined,
+      BLOB_STORE_ID: undefined,
+      BLOB_PUBLIC__STORE_ID: undefined,
       BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_store1234567890_synthetic",
       BLOB_PUBLIC_READ_WRITE_TOKEN: "vercel_blob_rw_store0987654321_synthetic",
     }),
+  );
+});
+
+test("reports a missing public store id when only the private store is configured", () => {
+  assertInvalidConfiguration(
+    {
+      STORAGE_PROVIDER: "vercel-blob",
+      BLOB_STORE_ID: "store_private123",
+      BLOB_PUBLIC__STORE_ID: undefined,
+    },
+    "BLOB_PUBLIC__STORE_ID",
   );
 });
 

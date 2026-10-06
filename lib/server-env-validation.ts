@@ -22,8 +22,13 @@ const productionEnvironmentSchema = z
     SUPABASE_URL: z.string().optional(),
     SUPABASE_SECRET_KEY: z.string().optional(),
     SUPABASE_STORAGE_BUCKET: z.string().optional(),
+    // Vercel Blob auth: either a long-lived read-write token (local dev) or
+    // an OIDC store id injected for the connected store (Vercel default).
     BLOB_READ_WRITE_TOKEN: z.string().optional(),
+    BLOB_STORE_ID: z.string().optional(),
     BLOB_PUBLIC_READ_WRITE_TOKEN: z.string().optional(),
+    BLOB_PUBLIC_STORE_ID: z.string().optional(),
+    BLOB_PUBLIC__STORE_ID: z.string().optional(),
     RATE_LIMIT_PROVIDER: z.literal("upstash"),
     UPSTASH_REDIS_REST_URL: z.string().url().startsWith("https://"),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
@@ -48,9 +53,7 @@ const productionEnvironmentSchema = z
       name:
         | "SUPABASE_URL"
         | "SUPABASE_SECRET_KEY"
-        | "SUPABASE_STORAGE_BUCKET"
-        | "BLOB_READ_WRITE_TOKEN"
-        | "BLOB_PUBLIC_READ_WRITE_TOKEN",
+        | "SUPABASE_STORAGE_BUCKET",
     ): void {
       if (!environment[name] || environment[name].trim() === "") {
         context.addIssue({
@@ -77,8 +80,32 @@ const productionEnvironmentSchema = z
         });
       }
     } else if (environment.STORAGE_PROVIDER === "vercel-blob") {
-      requireValue("BLOB_READ_WRITE_TOKEN");
-      requireValue("BLOB_PUBLIC_READ_WRITE_TOKEN");
+      const hasPrivateBlobAuth =
+        Boolean(environment.BLOB_READ_WRITE_TOKEN?.trim()) ||
+        Boolean(environment.BLOB_STORE_ID?.trim());
+      if (!hasPrivateBlobAuth) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "BLOB_READ_WRITE_TOKEN or BLOB_STORE_ID is required when STORAGE_PROVIDER=vercel-blob.",
+          path: ["BLOB_STORE_ID"],
+        });
+      }
+
+      const hasPublicBlobAuth =
+        Boolean(environment.BLOB_PUBLIC_READ_WRITE_TOKEN?.trim()) ||
+        Boolean(
+          environment.BLOB_PUBLIC_STORE_ID?.trim() ||
+            environment.BLOB_PUBLIC__STORE_ID?.trim(),
+        );
+      if (!hasPublicBlobAuth) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "BLOB_PUBLIC_READ_WRITE_TOKEN or BLOB_PUBLIC__STORE_ID is required when STORAGE_PROVIDER=vercel-blob.",
+          path: ["BLOB_PUBLIC__STORE_ID"],
+        });
+      }
     }
   });
 

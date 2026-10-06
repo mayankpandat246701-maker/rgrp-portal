@@ -23,8 +23,10 @@ Configure these server-side environment-variable names in the hosting platform. 
 - `SUPABASE_URL`
 - `SUPABASE_SECRET_KEY`
 - `SUPABASE_STORAGE_BUCKET`
-- `BLOB_READ_WRITE_TOKEN`
-- `BLOB_PUBLIC_READ_WRITE_TOKEN`
+- `BLOB_STORE_ID` (injected by the connected private Blob store; OIDC auth)
+- `BLOB_PUBLIC__STORE_ID` (injected by the connected public Blob store; OIDC auth)
+- `BLOB_READ_WRITE_TOKEN` (optional; long-lived token alternative, mainly for local development)
+- `BLOB_PUBLIC_READ_WRITE_TOKEN` (optional; long-lived token alternative for the public store)
 - `RATE_LIMIT_PROVIDER`
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
@@ -32,7 +34,7 @@ Configure these server-side environment-variable names in the hosting platform. 
 
 The production server validates configuration at startup, fails closed, and reports only invalid or missing variable names—never their values. Secrets must be strong and unique for this application. `APP_BASE_URL` must use HTTPS. Do not put real values in source control or deployment logs.
 
-Use `STORAGE_PROVIDER=vercel-blob` with two Vercel Blob stores: a **private** store whose read-write token is injected as `BLOB_READ_WRITE_TOKEN` (documents, ID-card templates, QR codes, and member photos are stored here and are only readable through the SDK with that token), and a **public** store whose token is stored as `BLOB_PUBLIC_READ_WRITE_TOKEN` (created in the Blob store's advanced settings with the environment-variable prefix `BLOB_PUBLIC_`; used only for Mukhya Vyakti portrait images that must render on public pages). Alternatively, `STORAGE_PROVIDER=supabase` with `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `SUPABASE_STORAGE_BUCKET` remains supported with a private Supabase Storage bucket. Use `RATE_LIMIT_PROVIDER=upstash` with the Upstash REST credentials for shared production rate limiting. Do not make the private bucket or private object URLs public.
+Use `STORAGE_PROVIDER=vercel-blob` with two Vercel Blob stores: a **private** store for documents, ID-card templates, QR codes, and member photos (only readable through the SDK), and a **public** store for Mukhya Vyakti portrait images that must render on public pages. With Vercel's OIDC-based Blob authentication (the default), connecting the stores to the project injects `BLOB_STORE_ID` and `BLOB_PUBLIC__STORE_ID`, and Vercel injects `VERCEL_OIDC_TOKEN` automatically—no long-lived tokens are required. Where the UI still provides read-write tokens, `BLOB_READ_WRITE_TOKEN` and `BLOB_PUBLIC_READ_WRITE_TOKEN` may be set instead; when present they take priority over OIDC (useful for local development). Alternatively, `STORAGE_PROVIDER=supabase` with `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `SUPABASE_STORAGE_BUCKET` remains supported with a private Supabase Storage bucket. Use `RATE_LIMIT_PROVIDER=upstash` with the Upstash REST credentials for shared production rate limiting. Do not make the private bucket or private object URLs public.
 
 ## Pending additive migration
 
@@ -130,7 +132,7 @@ Terminate TLS at a trusted hosting proxy and configure it to overwrite (not pass
 
 ## Private files and rate limiting
 
-Encrypted local filesystem storage is for development only. Production private-file uploads and reads require the configured Vercel Blob private store (`STORAGE_PROVIDER=vercel-blob` with `BLOB_READ_WRITE_TOKEN`) or the Supabase provider and a private bucket; local or missing storage configuration is not a safe production substitute. Verify object privacy, key access, backup/retention policy, and successful encrypted upload/read/delete tests before accepting real documents.
+Encrypted local filesystem storage is for development only. Production private-file uploads and reads require the configured Vercel Blob private store (`STORAGE_PROVIDER=vercel-blob`, authenticated via OIDC with `BLOB_STORE_ID` or with `BLOB_READ_WRITE_TOKEN`) or the Supabase provider and a private bucket; local or missing storage configuration is not a safe production substitute. Verify object privacy, key access, backup/retention policy, and successful encrypted upload/read/delete tests before accepting real documents.
 
 The in-memory rate limiter is development-only. It cannot coordinate counters across processes or hosting instances. Production rate-limited endpoints require the shared Upstash provider; they fail closed when it is missing or unavailable.
 

@@ -7,12 +7,21 @@ import {
   type PrivateStorageProvider,
 } from "@/lib/storage/types";
 
-function getRequiredToken(): string {
+/**
+ * Auth for the PRIVATE document store.
+ * - Local development: an explicit `BLOB_READ_WRITE_TOKEN` (e.g. from
+ *   .env.local) always wins, matching the SDK's token-first priority.
+ * - Vercel (OIDC): `BLOB_STORE_ID` injected by the connected store; the SDK
+ *   then signs requests with `VERCEL_OIDC_TOKEN` automatically.
+ */
+function getPrivateBlobAuth(): { token?: string; storeId?: string } {
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (!token) {
-    throw new StorageUnavailableError();
-  }
-  return token;
+  if (token) return { token };
+
+  const storeId = process.env.BLOB_STORE_ID?.trim();
+  if (storeId) return { storeId };
+
+  throw new StorageUnavailableError();
 }
 
 function assertValidStorageKey(storageKey: string): void {
@@ -59,6 +68,7 @@ export const vercelBlobPrivateStorageProvider: PrivateStorageProvider = {
 
   async save(storageKey, contents) {
     assertValidStorageKey(storageKey);
+    const auth = getPrivateBlobAuth();
 
     try {
       await put(storageKey, contents, {
@@ -66,7 +76,7 @@ export const vercelBlobPrivateStorageProvider: PrivateStorageProvider = {
         allowOverwrite: true,
         addRandomSuffix: false,
         contentType: "application/octet-stream",
-        token: getRequiredToken(),
+        ...auth,
       });
     } catch {
       throw new StorageUnavailableError();
@@ -75,13 +85,14 @@ export const vercelBlobPrivateStorageProvider: PrivateStorageProvider = {
 
   async read(storageKey) {
     assertValidStorageKey(storageKey);
+    const auth = getPrivateBlobAuth();
 
     let result;
     try {
       result = await get(storageKey, {
         access: "private",
         useCache: false,
-        token: getRequiredToken(),
+        ...auth,
       });
     } catch {
       throw new StorageUnavailableError();
@@ -100,9 +111,10 @@ export const vercelBlobPrivateStorageProvider: PrivateStorageProvider = {
 
   async delete(storageKey) {
     assertValidStorageKey(storageKey);
+    const auth = getPrivateBlobAuth();
 
     try {
-      await del(storageKey, { token: getRequiredToken() });
+      await del(storageKey, auth);
     } catch {
       throw new StorageUnavailableError();
     }
@@ -110,5 +122,8 @@ export const vercelBlobPrivateStorageProvider: PrivateStorageProvider = {
 };
 
 export function isVercelBlobPrivateStorageAvailable(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  return Boolean(
+    process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
+      process.env.BLOB_STORE_ID?.trim(),
+  );
 }

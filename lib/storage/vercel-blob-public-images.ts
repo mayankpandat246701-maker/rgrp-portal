@@ -6,13 +6,36 @@ import { publicImageStoreHost } from "@/lib/storage/public-image-host";
 import { StorageUnavailableError } from "@/lib/storage/types";
 
 const PUBLIC_IMAGE_TOKEN_ENV = "BLOB_PUBLIC_READ_WRITE_TOKEN";
+// OIDC-connected stores inject a store id instead of a long-lived token.
+// The connected public store exposes BLOB_PUBLIC__STORE_ID; the single
+// underscore spelling is accepted as a fallback for prefix variations.
+const PUBLIC_IMAGE_STORE_ID_ENVS = [
+  "BLOB_PUBLIC__STORE_ID",
+  "BLOB_PUBLIC_STORE_ID",
+] as const;
 
-function getRequiredToken(): string {
-  const token = process.env[PUBLIC_IMAGE_TOKEN_ENV]?.trim();
-  if (!token) {
-    throw new StorageUnavailableError();
+function readPublicImageStoreId(): string | null {
+  for (const name of PUBLIC_IMAGE_STORE_ID_ENVS) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
   }
-  return token;
+  return null;
+}
+
+/**
+ * Auth for the PUBLIC image store only. Always resolves to this store's own
+ * credentials — an explicit token (local development) or its dedicated store
+ * id — so OIDC requests can never fall back to the private document store
+ * (BLOB_STORE_ID).
+ */
+function getPublicImageAuth(): { token?: string; storeId?: string } {
+  const token = process.env[PUBLIC_IMAGE_TOKEN_ENV]?.trim();
+  if (token) return { token };
+
+  const storeId = readPublicImageStoreId();
+  if (storeId) return { storeId };
+
+  throw new StorageUnavailableError();
 }
 
 function assertValidImagePathname(pathname: string): void {
@@ -33,12 +56,17 @@ function assertValidImagePathname(pathname: string): void {
 }
 
 export function isPublicImageStorageAvailable(): boolean {
-  return Boolean(process.env[PUBLIC_IMAGE_TOKEN_ENV]?.trim());
+  return Boolean(
+    process.env[PUBLIC_IMAGE_TOKEN_ENV]?.trim() || readPublicImageStoreId(),
+  );
 }
 
 /** True only for URLs served by this project's exact public image store. */
 export function isPublicImageUrl(value: string): boolean {
-  const host = publicImageStoreHost(process.env[PUBLIC_IMAGE_TOKEN_ENV]);
+  const host = publicImageStoreHost(
+    process.env[PUBLIC_IMAGE_TOKEN_ENV],
+    readPublicImageStoreId(),
+  );
   if (!host) return false;
   try {
     const url = new URL(value);
@@ -59,14 +87,14 @@ export async function putPublicImage(
   contentType: string,
 ): Promise<string> {
   assertValidImagePathname(pathname);
-  const token = getRequiredToken();
+  const auth = getPublicImageAuth();
 
   const blob = await put(pathname, contents, {
     access: "public",
     allowOverwrite: false,
     addRandomSuffix: true,
     contentType,
-    token,
+    ...auth,
   });
   return blob.url;
 }
@@ -79,7 +107,7 @@ export async function putPublicImage(
 export async function deletePublicImageByUrl(url: string): Promise<boolean> {
   if (!isPublicImageUrl(url)) return true;
   try {
-    await del(url, { token: getRequiredToken() });
+    await del(url, getPublicImageAuth());
     return true;
   } catch {
     return false;

@@ -17,10 +17,35 @@ export function parseStoreIdFromBlobToken(
   return storeId && /^[A-Za-z0-9]+$/.test(storeId) ? storeId : null;
 }
 
-/** Exact https host of the public image store, or null when no token is set. */
+/**
+ * OIDC-connected stores expose a store id instead of a token
+ * (e.g. BLOB_STORE_ID / BLOB_PUBLIC__STORE_ID). The SDK accepts either the
+ * `store_<id>` or the bare `<id>` form and strips the prefix when building
+ * blob URLs, so do the same here.
+ */
+export function normalizeStoreId(
+  storeId: string | undefined | null,
+): string | null {
+  const trimmed = storeId?.trim();
+  if (!trimmed) return null;
+  const bare = trimmed.startsWith("store_")
+    ? trimmed.slice("store_".length)
+    : trimmed;
+  return bare && /^[A-Za-z0-9]+$/.test(bare) ? bare : null;
+}
+
+/**
+ * Exact https host of the public image store, or null when neither a
+ * read-write token nor a store id is configured. Pass either auth form.
+ */
 export function publicImageStoreHost(
   token: string | undefined | null,
+  storeId: string | undefined | null,
 ): string | null {
-  const storeId = parseStoreIdFromBlobToken(token);
-  return storeId ? `${storeId}${PUBLIC_IMAGE_HOST_SUFFIX}` : null;
+  const idFromToken = parseStoreIdFromBlobToken(token);
+  if (idFromToken) return `${idFromToken}${PUBLIC_IMAGE_HOST_SUFFIX}`;
+  const idFromStoreId = normalizeStoreId(storeId);
+  return idFromStoreId
+    ? `${idFromStoreId}${PUBLIC_IMAGE_HOST_SUFFIX}`
+    : null;
 }

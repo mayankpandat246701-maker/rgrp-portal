@@ -8,10 +8,11 @@ const scriptSource = isProduction
   : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
 // Images are allowed only from this project's exact public Blob store host
-// (derived from BLOB_PUBLIC_READ_WRITE_TOKEN). No wildcards: when the token
-// is absent, no additional image origin is granted at all.
+// (derived from the public store's token or OIDC store id). No wildcards:
+// when neither is present, no additional image origin is granted at all.
 const publicImageHost = publicImageStoreHost(
   process.env.BLOB_PUBLIC_READ_WRITE_TOKEN,
+  process.env.BLOB_PUBLIC__STORE_ID ?? process.env.BLOB_PUBLIC_STORE_ID,
 );
 const imageSource = publicImageHost
   ? `img-src 'self' data: blob: https://${publicImageHost}`
