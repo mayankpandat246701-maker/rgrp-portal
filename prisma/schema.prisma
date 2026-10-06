@@ -134,6 +134,8 @@ model Karyakarta {
   cityOrVillage           String?
   photoUrl                String?
   profilePhotoPath        String?
+  idCardFrontPath         String?
+  idCardBackPath          String?
   publicBio               String?
   joiningDate             DateTime?
   appointmentStartDate    DateTime?

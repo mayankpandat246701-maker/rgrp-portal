@@ -33,6 +33,8 @@ const actionLabels: Record<AdminAuditAction, string> = {
   DOCUMENTS_REJECTED: "दस्तावेज़ अस्वीकृत",
   ID_CARD_TEMPLATE_UPLOADED: "टेम्पलेट अपलोड",
   QR_GENERATED: "QR तैयार",
+  ID_CARD_GENERATED: "पहचान पत्र खोज",
+  ID_CARD_DOWNLOADED: "पहचान पत्र डाउनलोड",
 };
 
 type PageProps = {
@@ -114,6 +116,7 @@ export default async function AdminAuditLogsPage({
                 <th className="px-5 py-4 font-semibold">कार्रवाई</th>
                 <th className="px-5 py-4 font-semibold">व्यवस्थापक</th>
                 <th className="px-5 py-4 font-semibold">आवेदन संदर्भ</th>
+                <th className="px-5 py-4 font-semibold">पंजीकरण संख्या</th>
                 <th className="px-5 py-4 font-semibold">सुरक्षित सारांश</th>
               </tr>
             </thead>
@@ -138,6 +141,9 @@ export default async function AdminAuditLogsPage({
                   </td>
                   <td className="px-5 py-4 text-stone-700">
                     {entry.applicationReference ?? "उपलब्ध नहीं"}
+                  </td>
+                  <td className="px-5 py-4 font-mono text-xs text-stone-700">
+                    {entry.karyakartaRegNo ?? "उपलब्ध नहीं"}
                   </td>
                   <td className="px-5 py-4 text-stone-700">{entry.summary}</td>
                 </tr>

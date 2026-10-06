@@ -11,6 +11,7 @@ export type SafeAdminAuditLog = {
   action: AdminAuditAction;
   actingAdmin: { name: string; email: string };
   applicationReference: string | null;
+  karyakartaRegNo: string | null;
   summary: string;
 };
 
@@ -21,6 +22,8 @@ const summaries: Record<AdminAuditAction, string> = {
   DOCUMENTS_REJECTED: "दस्तावेज़ अस्वीकृत किए गए",
   ID_CARD_TEMPLATE_UPLOADED: "पहचान-पत्र टेम्पलेट सक्रिय किया गया",
   QR_GENERATED: "सत्यापन QR तैयार किया गया",
+  ID_CARD_GENERATED: "पहचान पत्र खोजा गया",
+  ID_CARD_DOWNLOADED: "पहचान पत्र डाउनलोड किया गया",
 };
 
 export async function listSafeAdminAuditLogs(options: {
@@ -38,6 +41,7 @@ export async function listSafeAdminAuditLogs(options: {
       createdAt: true,
       action: true,
       applicationId: true,
+      karyakartaId: true,
       admin: { select: { name: true, email: true } },
     },
   });
@@ -62,6 +66,22 @@ export async function listSafeAdminAuditLogs(options: {
       application.applicationReference,
     ]),
   );
+  const karyakartaIds = [
+    ...new Set(
+      visibleLogs
+        .map((log) => log.karyakartaId)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const karyakartas = karyakartaIds.length
+    ? await prisma.karyakarta.findMany({
+        where: { id: { in: karyakartaIds } },
+        select: { id: true, regNo: true },
+      })
+    : [];
+  const regNoById = new Map(
+    karyakartas.map((karyakarta) => [karyakarta.id, karyakarta.regNo]),
+  );
 
   return {
     entries: visibleLogs.map((log) => ({
@@ -71,6 +91,9 @@ export async function listSafeAdminAuditLogs(options: {
       actingAdmin: log.admin,
       applicationReference: log.applicationId
         ? (referencesById.get(log.applicationId) ?? null)
+        : null,
+      karyakartaRegNo: log.karyakartaId
+        ? (regNoById.get(log.karyakartaId) ?? null)
         : null,
       summary: summaries[log.action],
     })),

@@ -91,6 +91,8 @@ export async function POST(request: Request) {
       phone: true,
       profileStatus: true,
       archivedAt: true,
+      idCardFrontPath: true,
+      idCardBackPath: true,
       registrations: {
         where: { status: "ACTIVE" },
         orderBy: { createdAt: "desc" },
@@ -151,6 +153,8 @@ export async function POST(request: Request) {
         registrationNumber: registration?.registrationNumber ?? member.regNo,
         issueDate: registration?.issueDate?.toISOString() ?? null,
         expiryDate: registration?.expiryDate?.toISOString() ?? null,
+        hasFrontImage: member.idCardFrontPath !== null,
+        hasBackImage: member.idCardBackPath !== null,
         eligible,
         eligibilityMessage: eligible
           ? "पहचान पत्र के लिए पात्र है।"

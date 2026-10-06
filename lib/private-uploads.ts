@@ -50,6 +50,7 @@ export function createStorageKey(
     | "templates"
     | "qr"
     | "profiles"
+    | "id-cards"
     | "content"
     | "branding"
     | "certificates",
