@@ -1,16 +1,29 @@
 import type { NextConfig } from "next";
 
+import { publicImageStoreHost } from "./lib/storage/public-image-host";
+
 const isProduction = process.env.NODE_ENV === "production";
 const scriptSource = isProduction
   ? "script-src 'self' 'unsafe-inline'"
   : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+
+// Images are allowed only from this project's exact public Blob store host
+// (derived from BLOB_PUBLIC_READ_WRITE_TOKEN). No wildcards: when the token
+// is absent, no additional image origin is granted at all.
+const publicImageHost = publicImageStoreHost(
+  process.env.BLOB_PUBLIC_READ_WRITE_TOKEN,
+);
+const imageSource = publicImageHost
+  ? `img-src 'self' data: blob: https://${publicImageHost}`
+  : "img-src 'self' data: blob:";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "img-src 'self' data: blob:",
+  imageSource,
   "style-src 'self' 'unsafe-inline'",
   scriptSource,
   "connect-src 'self'",

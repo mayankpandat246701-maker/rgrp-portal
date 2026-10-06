@@ -18,10 +18,12 @@ const productionEnvironmentSchema = z
     DOCUMENT_ENCRYPTION_KEY: strongSecret,
     QR_SIGNING_SECRET: strongSecret,
     APP_BASE_URL: z.string().url().startsWith("https://"),
-    STORAGE_PROVIDER: z.literal("supabase"),
-    SUPABASE_URL: z.string().url().startsWith("https://"),
-    SUPABASE_SECRET_KEY: z.string().min(1),
-    SUPABASE_STORAGE_BUCKET: z.string().min(1),
+    STORAGE_PROVIDER: z.enum(["supabase", "vercel-blob"]),
+    SUPABASE_URL: z.string().optional(),
+    SUPABASE_SECRET_KEY: z.string().optional(),
+    SUPABASE_STORAGE_BUCKET: z.string().optional(),
+    BLOB_READ_WRITE_TOKEN: z.string().optional(),
+    BLOB_PUBLIC_READ_WRITE_TOKEN: z.string().optional(),
     RATE_LIMIT_PROVIDER: z.literal("upstash"),
     UPSTASH_REDIS_REST_URL: z.string().url().startsWith("https://"),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
@@ -40,6 +42,43 @@ const productionEnvironmentSchema = z
         message: "Secrets must be independent.",
         path: ["AUTH_SECRET"],
       });
+    }
+
+    function requireValue(
+      name:
+        | "SUPABASE_URL"
+        | "SUPABASE_SECRET_KEY"
+        | "SUPABASE_STORAGE_BUCKET"
+        | "BLOB_READ_WRITE_TOKEN"
+        | "BLOB_PUBLIC_READ_WRITE_TOKEN",
+    ): void {
+      if (!environment[name] || environment[name].trim() === "") {
+        context.addIssue({
+          code: "custom",
+          message: `${name} is required.`,
+          path: [name],
+        });
+      }
+    }
+
+    if (environment.STORAGE_PROVIDER === "supabase") {
+      requireValue("SUPABASE_URL");
+      requireValue("SUPABASE_SECRET_KEY");
+      requireValue("SUPABASE_STORAGE_BUCKET");
+      if (
+        environment.SUPABASE_URL &&
+        !z.string().url().startsWith("https://").safeParse(environment.SUPABASE_URL)
+          .success
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "SUPABASE_URL must be an https URL.",
+          path: ["SUPABASE_URL"],
+        });
+      }
+    } else if (environment.STORAGE_PROVIDER === "vercel-blob") {
+      requireValue("BLOB_READ_WRITE_TOKEN");
+      requireValue("BLOB_PUBLIC_READ_WRITE_TOKEN");
     }
   });
 

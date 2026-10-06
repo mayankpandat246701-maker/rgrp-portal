@@ -6,6 +6,7 @@ import {
   canPublishContent,
 } from "@/lib/auth/admin-permissions";
 import { leadershipMessageSchema } from "@/lib/leadership-message-validation";
+import { deletePublicImageByUrl } from "@/lib/storage/vercel-blob-public-images";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -133,16 +134,18 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const deleted = await prisma.$transaction(async (transaction) => {
       const current = await transaction.leadershipMessage.findUnique({
         where: { id },
-        select: { id: true, isPublished: true },
+        select: { id: true, isPublished: true, portraitUrl: true },
       });
-      if (!current) return "missing" as const;
+      if (!current) return { status: "missing" as const, portraitUrl: null };
       if (!canPublishContent(admin.role) && current.isPublished) {
-        return "forbidden" as const;
+        return { status: "forbidden" as const, portraitUrl: null };
       }
       const result = await transaction.leadershipMessage.deleteMany({
         where: { id },
       });
-      if (result.count === 0) return "missing" as const;
+      if (result.count === 0) {
+        return { status: "missing" as const, portraitUrl: null };
+      }
 
       await transaction.adminActivity.create({
         data: {
@@ -152,12 +155,24 @@ export async function DELETE(_request: Request, context: RouteContext) {
           entityId: id,
         },
       });
-      return "deleted" as const;
+      return { status: "deleted" as const, portraitUrl: current.portraitUrl };
     });
 
-    if (deleted === "missing") return errorResponse("संदेश नहीं मिला।", 404);
-    if (deleted === "forbidden") {
+    if (deleted.status === "missing") return errorResponse("संदेश नहीं मिला।", 404);
+    if (deleted.status === "forbidden") {
       return errorResponse("प्रकाशित संदेश हटाने की अनुमति नहीं है।", 403);
+    }
+    if (deleted.portraitUrl) {
+      const removed = await deletePublicImageByUrl(deleted.portraitUrl);
+      if (!removed) {
+        console.error(
+          JSON.stringify({
+            event: "leadership_portrait_cleanup_failed",
+            route: "/api/admin/leadership-messages/[id]",
+            code: "LEADERSHIP_PORTRAIT_CLEANUP_FAILED",
+          }),
+        );
+      }
     }
     revalidatePath("/");
     revalidatePath("/saksham-karyakarta");

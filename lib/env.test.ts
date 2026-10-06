@@ -62,6 +62,38 @@ test("reports an invalid storage provider by name", () => {
   assertInvalidConfiguration({ STORAGE_PROVIDER: "local" }, "STORAGE_PROVIDER");
 });
 
+test("reports missing Supabase storage variables by name", () => {
+  assertInvalidConfiguration(
+    {
+      SUPABASE_URL: undefined,
+      SUPABASE_SECRET_KEY: undefined,
+      SUPABASE_STORAGE_BUCKET: undefined,
+    },
+    "SUPABASE_URL, SUPABASE_SECRET_KEY, SUPABASE_STORAGE_BUCKET",
+  );
+});
+
+test("reports missing Vercel Blob tokens by name", () => {
+  assertInvalidConfiguration(
+    { STORAGE_PROVIDER: "vercel-blob" },
+    "BLOB_READ_WRITE_TOKEN, BLOB_PUBLIC_READ_WRITE_TOKEN",
+  );
+});
+
+test("accepts a valid Vercel Blob production configuration", () => {
+  assert.doesNotThrow(() =>
+    parseProductionEnvironment({
+      ...validProductionEnvironment,
+      STORAGE_PROVIDER: "vercel-blob",
+      SUPABASE_URL: undefined,
+      SUPABASE_SECRET_KEY: undefined,
+      SUPABASE_STORAGE_BUCKET: undefined,
+      BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_store1234567890_synthetic",
+      BLOB_PUBLIC_READ_WRITE_TOKEN: "vercel_blob_rw_store0987654321_synthetic",
+    }),
+  );
+});
+
 test("reports an invalid rate-limit provider by name", () => {
   assertInvalidConfiguration(
     { RATE_LIMIT_PROVIDER: "memory" },

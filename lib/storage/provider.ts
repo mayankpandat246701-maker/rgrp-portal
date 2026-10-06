@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  isVercelBlobPrivateStorageAvailable,
+  vercelBlobPrivateStorageProvider,
+} from "@/lib/storage/vercel-blob-provider";
+import {
   isLocalPrivateStorageAvailable,
   localPrivateStorageProvider,
 } from "@/lib/storage/local-private-provider";
@@ -22,6 +26,14 @@ function selectedStorageProvider(): PrivateStorageProvider {
     }
 
     return supabasePrivateStorageProvider;
+  }
+
+  if (configuredProvider === "vercel-blob") {
+    if (!isVercelBlobPrivateStorageAvailable()) {
+      throw new StorageUnavailableError();
+    }
+
+    return vercelBlobPrivateStorageProvider;
   }
 
   if (configuredProvider === "local" || !configuredProvider) {

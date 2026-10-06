@@ -36,3 +36,33 @@ test("shows a Hindi-friendly rate-limit message without retry duration", () => {
     "बहुत अधिक प्रयास किए गए हैं। कृपया कुछ समय बाद फिर से प्रयास करें।",
   );
 });
+
+test("maps an oversized file error to a clear Hindi message", () => {
+  assert.equal(
+    getUploadErrorMessage(413, {
+      error: "File exceeds the allowed size",
+      code: "FILE_TOO_LARGE",
+    }),
+    "फ़ाइल का आकार अनुमत सीमा (2 MB) से अधिक है।",
+  );
+});
+
+test("maps an unsupported media type error to a clear Hindi message", () => {
+  assert.equal(
+    getUploadErrorMessage(415, {
+      error: "Unsupported file type",
+      code: "UNSUPPORTED_MEDIA_TYPE",
+    }),
+    "फ़ाइल का प्रकार समर्थित नहीं है। फोटो के लिए JPG/PNG और आधार दस्तावेज़ के लिए JPG/PNG/PDF चुनें।",
+  );
+});
+
+test("maps a storage outage to a clear Hindi message", () => {
+  assert.equal(
+    getUploadErrorMessage(503, {
+      error: "Upload service is temporarily unavailable",
+      code: "UPLOAD_SERVICE_UNAVAILABLE",
+    }),
+    "अपलोड सेवा अभी उपलब्ध नहीं है। कृपया कुछ देर बाद फिर प्रयास करें।",
+  );
+});

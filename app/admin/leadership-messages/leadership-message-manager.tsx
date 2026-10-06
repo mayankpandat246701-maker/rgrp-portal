@@ -97,11 +97,13 @@ export function LeadershipMessageManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [portraitFile, setPortraitFile] = useState<File | null>(null);
   const [feedback, setFeedback] = useState("");
   const [isError, setIsError] = useState(false);
 
   function beginEdit(message: LeadershipMessageItem) {
     setEditingId(message.id);
+    setPortraitFile(null);
     setDraft({
       name: message.name,
       designation: message.designation,
@@ -119,11 +121,30 @@ export function LeadershipMessageManager({
   function cancelEdit() {
     setEditingId(null);
     setDraft(emptyDraft);
+    setPortraitFile(null);
     setFeedback("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const pendingPortrait = portraitFile;
+    if (pendingPortrait) {
+      const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+      if (!allowedImageTypes.includes(pendingPortrait.type)) {
+        setIsError(true);
+        setFeedback(
+          "छवि का प्रारूप अमान्य है। केवल JPG, JPEG, PNG और WEBP फ़ाइलें चुनें।",
+        );
+        return;
+      }
+      if (pendingPortrait.size > 3 * 1024 * 1024) {
+        setIsError(true);
+        setFeedback("छवि का आकार अनुमत सीमा (3 MB) से अधिक है।");
+        return;
+      }
+    }
+
     setIsSaving(true);
     setFeedback("");
     setIsError(false);
@@ -158,10 +179,50 @@ export function LeadershipMessageManager({
       }
 
       const saved = body.data;
+      let finalMessage = saved;
+      let feedbackMessage = "संदेश सहेज दिया गया है।";
+      let feedbackIsError = false;
+
+      if (pendingPortrait) {
+        const portraitForm = new FormData();
+        portraitForm.set("portrait", pendingPortrait);
+        try {
+          const uploadResponse = await fetch(
+            `/api/admin/leadership-messages/${encodeURIComponent(saved.id)}/photo`,
+            { method: "POST", body: portraitForm },
+          );
+          if (!uploadResponse.ok) {
+            throw new Error(await getResponseError(uploadResponse));
+          }
+          const uploadBody: unknown = await uploadResponse.json();
+          const uploadedUrl =
+            typeof uploadBody === "object" &&
+            uploadBody !== null &&
+            "data" in uploadBody &&
+            typeof uploadBody.data === "object" &&
+            uploadBody.data !== null &&
+            "portraitUrl" in uploadBody.data &&
+            typeof uploadBody.data.portraitUrl === "string"
+              ? uploadBody.data.portraitUrl
+              : null;
+          if (uploadedUrl) {
+            finalMessage = { ...saved, portraitUrl: uploadedUrl };
+          }
+          feedbackMessage = "संदेश और छवि दोनों सफलतापूर्वक सहेजे गए।";
+        } catch (uploadError) {
+          feedbackIsError = true;
+          feedbackMessage = `संदेश सहेज दिया गया, लेकिन छवि अपलोड नहीं हो सकी। ${
+            uploadError instanceof Error ? uploadError.message : ""
+          }`.trim();
+        }
+      }
+
       setMessages((current) => {
         const next = editingId
-          ? current.map((message) => (message.id === editingId ? saved : message))
-          : [...current, saved];
+          ? current.map((message) =>
+              message.id === editingId ? finalMessage : message,
+            )
+          : [...current, finalMessage];
         return next.sort(
           (left, right) =>
             left.sortOrder - right.sortOrder ||
@@ -170,7 +231,9 @@ export function LeadershipMessageManager({
       });
       setDraft(emptyDraft);
       setEditingId(null);
-      setFeedback("संदेश सहेज दिया गया है।");
+      setPortraitFile(null);
+      setIsError(feedbackIsError);
+      setFeedback(feedbackMessage);
       router.refresh();
     } catch (error) {
       setIsError(true);
@@ -281,6 +344,24 @@ export function LeadershipMessageManager({
             value={draft.portraitUrl}
           />
         </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-semibold text-stone-800">
+            पोर्ट्रेट छवि अपलोड करें (JPG/JPEG/PNG/WEBP, अधिकतम 3 MB)
+          </span>
+          <input
+            accept="image/jpeg,image/png,image/webp"
+            className="block w-full rounded-xl border border-stone-300 bg-white p-2.5 text-sm text-stone-700"
+            onChange={(event) =>
+              setPortraitFile(event.target.files?.[0] ?? null)
+            }
+            type="file"
+          />
+        </label>
+        {portraitFile ? (
+          <p className="text-xs text-stone-600">
+            चयनित छवि: {portraitFile.name}
+          </p>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-stone-800">राज्य (वैकल्पिक)</span>

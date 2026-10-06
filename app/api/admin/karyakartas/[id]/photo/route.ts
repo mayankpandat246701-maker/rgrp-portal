@@ -13,6 +13,7 @@ import {
 import {
   getContentImageDimensions,
   isContentImageDimensionsAllowed,
+  validateContentImage,
 } from "@/lib/content-image";
 import { prisma } from "@/lib/prisma";
 
@@ -26,33 +27,13 @@ function jsonError(error: string, status: number) {
   );
 }
 
-function isAllowedPhoto(type: string, bytes: Buffer): "jpg" | "png" | null {
-  if (
-    type === "image/jpeg" &&
-    bytes.length >= 3 &&
-    bytes[0] === 0xff &&
-    bytes[1] === 0xd8 &&
-    bytes[2] === 0xff
-  ) {
-    return "jpg";
-  }
-  if (
-    type === "image/png" &&
-    bytes.length >= 8 &&
-    bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-  ) {
-    return "png";
-  }
-  return null;
-}
-
 export async function POST(request: Request, context: RouteContext) {
   const admin = await requireAdmin();
   if (!admin) {
-    return jsonError("Authentication is required.", 401);
+    return jsonError("अनधिकृत अनुरोध।", 401);
   }
   if (!canManageKaryakarta(admin.role)) {
-    return jsonError("Not authorized.", 403);
+    return jsonError("इस कार्रवाई की अनुमति नहीं है।", 403);
   }
   const { id } = await context.params;
   let member;
@@ -66,39 +47,39 @@ export async function POST(request: Request, context: RouteContext) {
       route: "/api/admin/karyakartas/[id]/photo",
       code: "KARYAKARTA_PHOTO_LOOKUP_FAILED",
     });
-    return jsonError("Unable to load this member right now.", 500);
+    return jsonError("कार्यकर्ता की जानकारी अभी नहीं मिली।", 500);
   }
-  if (!member) return jsonError("Member not found.", 404);
+  if (!member) return jsonError("कार्यकर्ता नहीं मिला।", 404);
   if (!hasKaryakartaScope(admin, member.state, member.district)) {
-    return jsonError("Not authorized.", 403);
+    return jsonError("इस कार्रवाई की अनुमति नहीं है।", 403);
   }
 
   if (Number(request.headers.get("content-length") ?? 0) > MAX_PHOTO_SIZE + 32 * 1024) {
-    return jsonError("Image exceeds the allowed size.", 413);
+    return jsonError("छवि का आकार अनुमत सीमा (3 MB) से अधिक है।", 413);
   }
   let data: FormData;
   try {
     data = await request.formData();
   } catch {
-    return jsonError("A valid image file is required.", 400);
+    return jsonError("एक वैध छवि फ़ाइल आवश्यक है।", 400);
   }
   const file = data.get("photo");
   if (!(file instanceof File) || file.size < 1) {
-    return jsonError("A valid image file is required.", 400);
+    return jsonError("एक वैध छवि फ़ाइल आवश्यक है।", 400);
   }
   if (file.size > MAX_PHOTO_SIZE) {
-    return jsonError("Image exceeds the allowed size.", 413);
+    return jsonError("छवि का आकार अनुमत सीमा (3 MB) से अधिक है।", 413);
   }
   const contents = Buffer.from(await file.arrayBuffer());
-  const extension = isAllowedPhoto(file.type, contents);
-  if (!extension) {
-    return jsonError("Only JPG and PNG photos are supported.", 415);
+  const image = validateContentImage(file.type, contents);
+  if (!image) {
+    return jsonError("केवल JPG, JPEG, PNG और WEBP छवियाँ समर्थित हैं।", 415);
   }
   const dimensions = getContentImageDimensions(contents);
-  if (!dimensions) return jsonError("The selected image could not be read.", 415);
-  if (!isContentImageDimensionsAllowed(dimensions)) return jsonError("Image resolution exceeds the allowed limit.", 413);
+  if (!dimensions) return jsonError("चयनित छवि पढ़ी नहीं जा सकी।", 415);
+  if (!isContentImageDimensionsAllowed(dimensions)) return jsonError("छवि का रिज़ॉल्यूशन अनुमत सीमा से अधिक है।", 413);
 
-  const storageKey = createStorageKey("profiles", extension, true);
+  const storageKey = createStorageKey("profiles", image.extension, true);
   try {
     await saveEncryptedPrivateFile(storageKey, contents);
     await prisma.$transaction(async (tx) => {
@@ -150,6 +131,6 @@ export async function POST(request: Request, context: RouteContext) {
       fileSize: file.size,
       fileType: file.type,
     });
-    return jsonError("Unable to save the profile photo.", 500);
+    return jsonError("प्रोफ़ाइल फ़ोटो सहेजा नहीं जा सका। कृपया फिर प्रयास करें।", 500);
   }
 }

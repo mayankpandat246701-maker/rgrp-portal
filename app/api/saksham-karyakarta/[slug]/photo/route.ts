@@ -34,7 +34,9 @@ export async function GET(_request: Request, context: RouteContext) {
     const photo = await readEncryptedPrivateFile(member.profilePhotoPath);
     const contentType = member.profilePhotoPath.endsWith(".png.enc")
       ? "image/png"
-      : "image/jpeg";
+      : member.profilePhotoPath.endsWith(".webp.enc")
+        ? "image/webp"
+        : "image/jpeg";
     return new NextResponse(new Uint8Array(photo), {
       headers: {
         "Content-Type": contentType,
