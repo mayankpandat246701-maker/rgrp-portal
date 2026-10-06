@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentKaryakarta } from "@/lib/auth/require-karyakarta";
 import { isIdCardEligible } from "@/lib/id-card-eligibility";
+import { isSakshamKaryakartaEligible } from "@/lib/saksham-karyakarta-eligibility";
 import { prisma } from "@/lib/prisma";
 import {
   checkIdCardLimit,
@@ -27,21 +28,21 @@ export async function GET(request: Request) {
   const member = await getCurrentKaryakarta();
   if (!member) {
     return NextResponse.json(
-      { success: false, error: { message: "पहले प्रवेश करें।" } },
+      { success: false, error: { message: "à¤ªà¤¹à¤²à¥‡ à¤ªà¥à¤°à¤µà¥‡à¤¶ à¤•à¤°à¥‡à¤‚à¥¤" } },
       { status: 401, headers: { "Cache-Control": "no-store" } },
     );
   }
 
   if (!isIdCardRateLimitAvailable()) {
     return NextResponse.json(
-      { success: false, error: { message: "सेवा अभी उपलब्ध नहीं है।" } },
+      { success: false, error: { message: "à¤¸à¥‡à¤µà¤¾ à¤…à¤­à¥€ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤" } },
       { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
     );
   }
   const limit = await checkIdCardLimit(`member:${member.id}:${requestIp(request)}`);
   if (!limit.allowed) {
     return NextResponse.json(
-      { success: false, error: { message: "बहुत अधिक प्रयास किए गए।" } },
+      { success: false, error: { message: "à¤¬à¤¹à¥à¤¤ à¤…à¤§à¤¿à¤• à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤•à¤¿à¤ à¤—à¤à¥¤" } },
       {
         status: 429,
         headers: {
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
   );
   if (!query.success) {
     return NextResponse.json(
-      { success: false, error: { message: "अनुरोध अमान्य है।" } },
+      { success: false, error: { message: "à¤…à¤¨à¥à¤°à¥‹à¤§ à¤…à¤®à¤¾à¤¨à¥à¤¯ à¤¹à¥ˆà¥¤" } },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -66,6 +67,9 @@ export async function GET(request: Request) {
     where: { id: member.id },
     select: {
       profileStatus: true,
+      status: true,
+      isPublicProfile: true,
+      isEmergencyHidden: true,
       archivedAt: true,
       idCardFrontPath: true,
       idCardBackPath: true,
@@ -86,6 +90,15 @@ export async function GET(request: Request) {
         archivedAt: record.archivedAt,
         registrationStatus: registration.status,
         registrationExpiryDate: registration.expiryDate,
+      }) &&
+      isSakshamKaryakartaEligible({
+        profileStatus: record.profileStatus,
+        memberStatus: record.status,
+        isPublicProfile: record.isPublicProfile,
+        isEmergencyHidden: record.isEmergencyHidden,
+        archivedAt: record.archivedAt,
+        registrationStatus: registration.status,
+        registrationExpiryDate: registration.expiryDate,
       }),
   );
   if (!eligible || !record?.idCardFrontPath) {
@@ -95,7 +108,7 @@ export async function GET(request: Request) {
         data: {
           available: false,
           message:
-            "आपका कार्यकर्ता प्रोफ़ाइल अभी प्रशासन द्वारा सत्यापित नहीं हुआ है। सत्यापन के बाद ही पहचान पत्र उपलब्ध होगा।",
+            "à¤†à¤ªà¤•à¤¾ à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾ à¤ªà¥à¤°à¥‹à¤«à¤¼à¤¾à¤‡à¤² à¤…à¤­à¥€ à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤¨ à¤¦à¥à¤µà¤¾à¤°à¤¾ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤¨à¤¹à¥€à¤‚ à¤¹à¥à¤† à¤¹à¥ˆà¥¤ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¨ à¤•à¥‡ à¤¬à¤¾à¤¦ à¤¹à¥€ à¤ªà¤¹à¤šà¤¾à¤¨ à¤ªà¤¤à¥à¤° à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¹à¥‹à¤—à¤¾à¥¤",
         },
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -140,3 +153,5 @@ export async function GET(request: Request) {
     return new NextResponse(null, { status: 404 });
   }
 }
+
+

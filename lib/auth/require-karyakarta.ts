@@ -1,10 +1,11 @@
-import "server-only";
+﻿import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import {
   type KaryakartaSessionPayload,
   verifyKaryakartaSession,
 } from "@/lib/auth/karyakarta-session";
+import { isSakshamKaryakartaEligible } from "@/lib/saksham-karyakarta-eligibility";
 
 export type CurrentKaryakarta = {
   id: string;
@@ -28,14 +29,33 @@ export async function getCurrentKaryakarta(): Promise<CurrentKaryakarta | null> 
       phone: true,
       profileStatus: true,
       status: true,
+      isPublicProfile: true,
+      isEmergencyHidden: true,
       archivedAt: true,
+      registrations: {
+        where: { status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true, expiryDate: true },
+      },
     },
   });
 
-  if (!karyakarta) return null;
-  if (karyakarta.profileStatus !== "ACTIVE") return null;
-  if (karyakarta.status !== "APPROVED") return null;
-  if (karyakarta.archivedAt !== null) return null;
+  const registration = karyakarta?.registrations[0] ?? null;
+  if (
+    !karyakarta ||
+    !isSakshamKaryakartaEligible({
+      profileStatus: karyakarta.profileStatus,
+      memberStatus: karyakarta.status,
+      isPublicProfile: karyakarta.isPublicProfile,
+      isEmergencyHidden: karyakarta.isEmergencyHidden,
+      archivedAt: karyakarta.archivedAt,
+      registrationStatus: registration?.status ?? null,
+      registrationExpiryDate: registration?.expiryDate ?? null,
+    })
+  ) {
+    return null;
+  }
 
   return {
     id: karyakarta.id,

@@ -1,4 +1,4 @@
-import { AdminAuditAction } from "@prisma/client";
+﻿import { AdminAuditAction } from "@prisma/client";
 import { NextResponse } from "next/server";
 import {
   canManageKaryakarta,
@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/admin-permissions";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { isIdCardEligible } from "@/lib/id-card-eligibility";
+import { isSakshamKaryakartaEligible } from "@/lib/saksham-karyakarta-eligibility";
 import { prisma } from "@/lib/prisma";
 import {
   createStorageKey,
@@ -44,40 +45,40 @@ async function validateSide(
 ): Promise<{ contents: Buffer; extension: "jpg" | "png" | "webp" } | string> {
   if (!(file instanceof File) || file.size < 1) {
     return label === "front"
-      ? "आगे की छवि (front) आवश्यक है।"
-      : "पीछे की छवि मान्य नहीं है।";
+      ? "à¤†à¤—à¥‡ à¤•à¥€ à¤›à¤µà¤¿ (front) à¤†à¤µà¤¶à¥à¤¯à¤• à¤¹à¥ˆà¥¤"
+      : "à¤ªà¥€à¤›à¥‡ à¤•à¥€ à¤›à¤µà¤¿ à¤®à¤¾à¤¨à¥à¤¯ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤";
   }
   if (file.size > MAX_ID_CARD_SIZE) {
-    return "छवि का आकार अनुमत सीमा (5 MB) से अधिक है।";
+    return "à¤›à¤µà¤¿ à¤•à¤¾ à¤†à¤•à¤¾à¤° à¤…à¤¨à¥à¤®à¤¤ à¤¸à¥€à¤®à¤¾ (5 MB) à¤¸à¥‡ à¤…à¤§à¤¿à¤• à¤¹à¥ˆà¥¤";
   }
   const contents = Buffer.from(await file.arrayBuffer());
   const image = validateContentImage(file.type, contents);
-  if (!image) return "केवल JPG, JPEG, PNG और WEBP छवियाँ समर्थित हैं।";
+  if (!image) return "à¤•à¥‡à¤µà¤² JPG, JPEG, PNG à¤”à¤° WEBP à¤›à¤µà¤¿à¤¯à¤¾à¤ à¤¸à¤®à¤°à¥à¤¥à¤¿à¤¤ à¤¹à¥ˆà¤‚à¥¤";
   const dimensions = getContentImageDimensions(contents);
-  if (!dimensions) return "चयनित छवि पढ़ी नहीं जा सकी।";
+  if (!dimensions) return "à¤šà¤¯à¤¨à¤¿à¤¤ à¤›à¤µà¤¿ à¤ªà¤¢à¤¼à¥€ à¤¨à¤¹à¥€à¤‚ à¤œà¤¾ à¤¸à¤•à¥€à¥¤";
   if (!isContentImageDimensionsAllowed(dimensions)) {
-    return "छवि का रिज़ॉल्यूशन अनुमत सीमा से अधिक है।";
+    return "à¤›à¤µà¤¿ à¤•à¤¾ à¤°à¤¿à¤œà¤¼à¥‰à¤²à¥à¤¯à¥‚à¤¶à¤¨ à¤…à¤¨à¥à¤®à¤¤ à¤¸à¥€à¤®à¤¾ à¤¸à¥‡ à¤…à¤§à¤¿à¤• à¤¹à¥ˆà¥¤";
   }
   return { contents, extension: image.extension };
 }
 
 export async function POST(request: Request, context: RouteContext) {
   const admin = await requireAdmin();
-  if (!admin) return jsonError("पहले प्रशासक के रूप में प्रवेश करें।", 401);
+  if (!admin) return jsonError("à¤ªà¤¹à¤²à¥‡ à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤• à¤•à¥‡ à¤°à¥‚à¤ª à¤®à¥‡à¤‚ à¤ªà¥à¤°à¤µà¥‡à¤¶ à¤•à¤°à¥‡à¤‚à¥¤", 401);
   if (!canManageKaryakarta(admin.role)) {
-    return jsonError("आपको पहचान पत्र अपलोड करने की अनुमति नहीं है।", 403);
+    return jsonError("à¤†à¤ªà¤•à¥‹ à¤ªà¤¹à¤šà¤¾à¤¨ à¤ªà¤¤à¥à¤° à¤…à¤ªà¤²à¥‹à¤¡ à¤•à¤°à¤¨à¥‡ à¤•à¥€ à¤…à¤¨à¥à¤®à¤¤à¤¿ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤", 403);
   }
 
   if (!isIdCardRateLimitAvailable()) {
     return NextResponse.json(
-      { success: false, error: { message: "सेवा अभी उपलब्ध नहीं है।" } },
+      { success: false, error: { message: "à¤¸à¥‡à¤µà¤¾ à¤…à¤­à¥€ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤" } },
       { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
     );
   }
   const limit = await checkIdCardLimit(`upload:${admin.id}:${requestIp(request)}`);
   if (!limit.allowed) {
     return NextResponse.json(
-      { success: false, error: { message: "बहुत अधिक प्रयास किए गए।" } },
+      { success: false, error: { message: "à¤¬à¤¹à¥à¤¤ à¤…à¤§à¤¿à¤• à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤•à¤¿à¤ à¤—à¤à¥¤" } },
       {
         status: 429,
         headers: {
@@ -90,7 +91,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   if (!/^[a-z0-9]+$/i.test(id)) {
-    return jsonError("कार्यकर्ता उपलब्ध नहीं है।", 404);
+    return jsonError("à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤", 404);
   }
 
   const member = await prisma.karyakarta.findUnique({
@@ -100,6 +101,9 @@ export async function POST(request: Request, context: RouteContext) {
       state: true,
       district: true,
       profileStatus: true,
+      status: true,
+      isPublicProfile: true,
+      isEmergencyHidden: true,
       archivedAt: true,
       idCardFrontPath: true,
       idCardBackPath: true,
@@ -111,9 +115,9 @@ export async function POST(request: Request, context: RouteContext) {
       },
     },
   });
-  if (!member) return jsonError("कार्यकर्ता उपलब्ध नहीं है।", 404);
+  if (!member) return jsonError("à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤", 404);
   if (!hasKaryakartaScope(admin, member.state, member.district)) {
-    return jsonError("आपको इस कार्यकर्ता तक पहुँच की अनुमति नहीं है।", 403);
+    return jsonError("à¤†à¤ªà¤•à¥‹ à¤‡à¤¸ à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾ à¤¤à¤• à¤ªà¤¹à¥à¤à¤š à¤•à¥€ à¤…à¤¨à¥à¤®à¤¤à¤¿ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤", 403);
   }
 
   const registration = member.registrations[0] ?? null;
@@ -124,16 +128,25 @@ export async function POST(request: Request, context: RouteContext) {
       archivedAt: member.archivedAt,
       registrationStatus: registration.status,
       registrationExpiryDate: registration.expiryDate,
+    }) ||
+    !isSakshamKaryakartaEligible({
+      profileStatus: member.profileStatus,
+      memberStatus: member.status,
+      isPublicProfile: member.isPublicProfile,
+      isEmergencyHidden: member.isEmergencyHidden,
+      archivedAt: member.archivedAt,
+      registrationStatus: registration.status,
+      registrationExpiryDate: registration.expiryDate,
     })
   ) {
-    return jsonError("यह कार्यकर्ता पहचान पत्र के लिए पात्र नहीं है।", 409);
+    return jsonError("à¤¯à¤¹ à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾ à¤ªà¤¹à¤šà¤¾à¤¨ à¤ªà¤¤à¥à¤° à¤•à¥‡ à¤²à¤¿à¤ à¤ªà¤¾à¤¤à¥à¤° à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤", 409);
   }
 
   let data: FormData;
   try {
     data = await request.formData();
   } catch {
-    return jsonError("एक वैध छवि फ़ाइल आवश्यक है।", 400);
+    return jsonError("à¤à¤• à¤µà¥ˆà¤§ à¤›à¤µà¤¿ à¤«à¤¼à¤¾à¤‡à¤² à¤†à¤µà¤¶à¥à¤¯à¤• à¤¹à¥ˆà¥¤", 400);
   }
   const front = await validateSide(data.get("front"), "front");
   if (typeof front === "string") return jsonError(front, 400);
@@ -187,6 +200,8 @@ export async function POST(request: Request, context: RouteContext) {
       route: "/api/admin/id-cards/[id]/upload",
       code: "ADMIN_ID_CARD_UPLOAD_FAILED",
     });
-    return jsonError("पहचान पत्र अपलोड नहीं हो सका।", 500);
+    return jsonError("à¤ªà¤¹à¤šà¤¾à¤¨ à¤ªà¤¤à¥à¤° à¤…à¤ªà¤²à¥‹à¤¡ à¤¨à¤¹à¥€à¤‚ à¤¹à¥‹ à¤¸à¤•à¤¾à¥¤", 500);
   }
 }
+
+
