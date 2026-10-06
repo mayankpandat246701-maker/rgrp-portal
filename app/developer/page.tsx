@@ -1,4 +1,5 @@
 ﻿import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Developer Portfolio | Mayank Upadhyay",
@@ -6,11 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function DeveloperPage() {
-  return (
-    <iframe
-      className="h-screen w-full border-0"
-      src="/developer-portfolio.html"
-      title="Mayank Upadhyay Developer Portfolio"
-    />
-  );
+  redirect("/developer-portfolio.html");
 }
