@@ -1,106 +1,134 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-type VerificationResult =
-  | {
-      result: "verified";
-      member: {
-        name: string;
-        registrationNumber: string;
-        daitva: string | null;
-        state: string | null;
-        district: string | null;
-        issueDate: string | null;
-        expiryDate: string | null;
-      };
-    }
-  | { result: "expired" | "not_valid" | "not_found"; message: string };
+type Member = {
+  name: string;
+  registrationNumber: string;
+  daitva: string | null;
+  state: string | null;
+  district: string | null;
+  issueDate: string | null;
+  expiryDate: string | null;
+};
 
-function displayDate(value: string | null): string | null {
-  return value
-    ? new Intl.DateTimeFormat("hi-IN", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value))
-    : null;
-}
+type VerifyResponse = {
+  result?: "verified" | "expired" | "not_valid" | "not_found";
+  message?: string;
+  member?: Member;
+};
 
 export function VerifyIdForm({ initialRegistrationNumber }: { initialRegistrationNumber: string }) {
   const [registrationNumber, setRegistrationNumber] = useState(initialRegistrationNumber);
-  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [captcha, setCaptcha] = useState<{ question: string; token: string } | null>(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [result, setResult] = useState<VerifyResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  const loadCaptcha = () => {
+    setCaptchaAnswer("");
+    fetch("/api/captcha", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => setCaptcha(data))
+      .catch(() => setError("कैप्चा लोड नहीं हो सका। पेज रीफ्रेश करें।"));
+  };
+
+  useEffect(loadCaptcha, []);
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     setResult(null);
     setLoading(true);
+
     try {
       const response = await fetch("/api/verify-id", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registrationNumber }),
+        body: JSON.stringify({ registrationNumber, captchaToken: captcha?.token, captchaAnswer }),
       });
-      const data = await response.json();
+      const data: VerifyResponse = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        setError(typeof data.error === "string" ? data.error : "सत्यापन अभी उपलब्ध नहीं है।");
-      } else {
-        setResult(data as VerificationResult);
+        setError(data.message ?? "सत्यापन विफल रहा। कृपया पुनः प्रयास करें।");
+        loadCaptcha();
+        return;
       }
+      setResult(data);
     } catch {
-      setError("सत्यापन अभी उपलब्ध नहीं है। कृपया कुछ देर बाद फिर प्रयास करें।");
+      setError("नेटवर्क त्रुटि। कृपया पुनः प्रयास करें।");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <form className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8" onSubmit={submit}>
-        <label className="block text-sm font-semibold text-stone-800" htmlFor="registration-number">
-          पहचान पत्र पर अंकित पंजीकरण संख्या
-        </label>
-        <input
-          autoCapitalize="characters"
-          autoComplete="off"
-          className="mt-2 min-h-12 w-full rounded-xl border border-stone-300 px-4 font-mono text-sm uppercase"
-          id="registration-number"
-          maxLength={60}
-          minLength={12}
-          onChange={(event) => setRegistrationNumber(event.target.value.toUpperCase())}
-          pattern="RGRP-[A-Z0-9-]+"
-          required
-          value={registrationNumber}
-        />
-        <button className="mt-4 min-h-11 rounded-xl bg-emerald-900 px-5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60" disabled={loading} type="submit">
-          {loading ? "सत्यापन हो रहा है..." : "पहचान पत्र सत्यापित करें"}
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6">
+        <div>
+          <label htmlFor="registrationNumber" className="block text-sm font-medium text-stone-800">
+            पंजीकरण संख्या
+          </label>
+          <input
+            id="registrationNumber"
+            value={registrationNumber}
+            onChange={(e) => setRegistrationNumber(e.target.value)}
+            required
+            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            placeholder="RGRP-XXXX-XXXX"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="captchaAnswer" className="block text-sm font-medium text-stone-800">
+            कैप्चा: {captcha?.question ?? "लोड हो रहा है…"}
+          </label>
+          <input
+            id="captchaAnswer"
+            value={captchaAnswer}
+            onChange={(e) => setCaptchaAnswer(e.target.value)}
+            required
+            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            placeholder="उत्तर दर्ज करें"
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={loading || !captcha}
+          className="w-full rounded-xl bg-emerald-800 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+        >
+          {loading ? "सत्यापित हो रहा है…" : "सत्यापित करें"}
         </button>
       </form>
 
-      {error ? <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" role="alert">{error}</p> : null}
-      {result?.result === "verified" ? (
-        <section aria-live="polite" className="mt-5 rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
-          <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-900">✓ सत्यापित कार्यकर्ता</span>
-          <h2 className="mt-4 text-2xl font-bold text-stone-950">{result.member.name}</h2>
-          <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-            {[
-              ["पंजीकरण संख्या", result.member.registrationNumber],
-              ["दायित्व", result.member.daitva],
-              ["राज्य", result.member.state],
-              ["जिला", result.member.district],
-              ["जारी करने की तिथि", displayDate(result.member.issueDate)],
-              ["समाप्ति तिथि", displayDate(result.member.expiryDate)],
-            ].filter((item): item is [string, string] => Boolean(item[1])).map(([label, value]) => (
-              <div key={label}><dt className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</dt><dd className="mt-1 text-sm font-medium text-stone-900">{value}</dd></div>
-            ))}
-          </dl>
-          <p className="mt-6 border-t border-stone-100 pt-4 text-sm font-semibold text-emerald-900">राष्ट्रीय गौ रक्षा परिषद द्वारा सत्यापित</p>
-        </section>
-      ) : result ? (
-        <section aria-live="polite" className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 text-stone-700 shadow-sm">
-          <h2 className="font-semibold text-stone-950">{result.result === "expired" ? "पंजीकरण की वैधता समाप्त" : "रिकॉर्ड वर्तमान में सक्रिय नहीं है"}</h2>
-          <p className="mt-2 text-sm leading-6">{result.message}</p>
-        </section>
-      ) : null}
+      {result && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-6">
+          {result.result === "verified" && result.member ? (
+            <div className="space-y-2">
+              <p className="text-lg font-bold text-emerald-800">✓ सत्यापित कार्यकर्ता</p>
+              <p className="font-semibold text-stone-950">{result.member.name}</p>
+              <p className="font-mono text-xs text-stone-600">{result.member.registrationNumber}</p>
+              {result.member.daitva && <p className="text-sm text-stone-700">दायित्व: {result.member.daitva}</p>}
+              {(result.member.state || result.member.district) && (
+                <p className="text-sm text-stone-700">
+                  क्षेत्र: {[result.member.district, result.member.state].filter(Boolean).join(", ")}
+                </p>
+              )}
+              {result.member.expiryDate && (
+                <p className="text-sm text-stone-700">
+                  वैध तिथि: {new Date(result.member.expiryDate).toLocaleDateString("hi-IN")}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-stone-700">{result.message ?? "रिकॉर्ड उपलब्ध नहीं है।"}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+﻿import { createHash } from "node:crypto";
+import { verifyCaptcha } from "@/lib/captcha";
 import { NextResponse } from "next/server";
 import { checkRegistrationVerificationLimit, isRegistrationVerificationRateLimitAvailable } from "@/lib/rate-limit/registration-verification";
 import { resolveRegistrationVerificationStatus } from "@/lib/registration-verification";
@@ -12,7 +13,7 @@ function requestIp(request: Request): string {
 const unknownResult = {
   result: "not_found",
   message:
-    "इस पंजीकरण संख्या के लिए कोई सक्रिय सत्यापित रिकॉर्ड उपलब्ध नहीं है। कृपया इस कार्ड पर भरोसा करने से पहले राष्ट्रीय गौ रक्षा परिषद के आधिकारिक प्रशासन से संपर्क करें।",
+    "à¤‡à¤¸ à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£ à¤¸à¤‚à¤–à¥à¤¯à¤¾ à¤•à¥‡ à¤²à¤¿à¤ à¤•à¥‹à¤ˆ à¤¸à¤•à¥à¤°à¤¿à¤¯ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤°à¤¿à¤•à¥‰à¤°à¥à¤¡ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤‡à¤¸ à¤•à¤¾à¤°à¥à¤¡ à¤ªà¤° à¤­à¤°à¥‹à¤¸à¤¾ à¤•à¤°à¤¨à¥‡ à¤¸à¥‡ à¤ªà¤¹à¤²à¥‡ à¤°à¤¾à¤·à¥à¤Ÿà¥à¤°à¥€à¤¯ à¤—à¥Œ à¤°à¤•à¥à¤·à¤¾ à¤ªà¤°à¤¿à¤·à¤¦ à¤•à¥‡ à¤†à¤§à¤¿à¤•à¤¾à¤°à¤¿à¤• à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤¨ à¤¸à¥‡ à¤¸à¤‚à¤ªà¤°à¥à¤• à¤•à¤°à¥‡à¤‚à¥¤",
 };
 
 export async function POST(request: Request) {
@@ -21,7 +22,22 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "कृपया मान्य पंजीकरण संख्या दर्ज करें।" },
+      { error: "à¤•à¥ƒà¤ªà¤¯à¤¾ à¤®à¤¾à¤¨à¥à¤¯ à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£ à¤¸à¤‚à¤–à¥à¤¯à¤¾ à¤¦à¤°à¥à¤œ à¤•à¤°à¥‡à¤‚à¥¤" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const captchaToken =
+    typeof body === "object" && body !== null && "captchaToken" in body
+      ? (body as Record<string, unknown>).captchaToken
+      : null;
+  const captchaAnswer =
+    typeof body === "object" && body !== null && "captchaAnswer" in body
+      ? (body as Record<string, unknown>).captchaAnswer
+      : null;
+
+  if (!verifyCaptcha(captchaToken, captchaAnswer)) {
+    return NextResponse.json(
+      { error: "कृपया सही कैप्चा उत्तर दर्ज करें।" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -38,14 +54,14 @@ export async function POST(request: Request) {
     !/^RGRP-[A-Z0-9-]+$/.test(registrationNumber)
   ) {
     return NextResponse.json(
-      { error: "कृपया मान्य पंजीकरण संख्या दर्ज करें।" },
+      { error: "à¤•à¥ƒà¤ªà¤¯à¤¾ à¤®à¤¾à¤¨à¥à¤¯ à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£ à¤¸à¤‚à¤–à¥à¤¯à¤¾ à¤¦à¤°à¥à¤œ à¤•à¤°à¥‡à¤‚à¥¤" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
   if (!isRegistrationVerificationRateLimitAvailable()) {
     return NextResponse.json(
-      { error: "सत्यापन अभी उपलब्ध नहीं है। कृपया कुछ देर बाद फिर प्रयास करें।" },
+      { error: "à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¨ à¤…à¤­à¥€ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤•à¥à¤› à¤¦à¥‡à¤° à¤¬à¤¾à¤¦ à¤«à¤¿à¤° à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤•à¤°à¥‡à¤‚à¥¤" },
       { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
     );
   }
@@ -58,13 +74,13 @@ export async function POST(request: Request) {
       code: "REGISTRATION_RATE_LIMIT_FAILED",
     });
     return NextResponse.json(
-      { error: "सत्यापन अभी उपलब्ध नहीं है। कृपया कुछ देर बाद फिर प्रयास करें।" },
+      { error: "à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¨ à¤…à¤­à¥€ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤•à¥à¤› à¤¦à¥‡à¤° à¤¬à¤¾à¤¦ à¤«à¤¿à¤° à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤•à¤°à¥‡à¤‚à¥¤" },
       { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
     );
   }
   if (!limit.allowed) {
     return NextResponse.json(
-      { error: "बहुत अधिक सत्यापन प्रयास हुए हैं। कृपया कुछ देर बाद फिर प्रयास करें।" },
+      { error: "à¤¬à¤¹à¥à¤¤ à¤…à¤§à¤¿à¤• à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¨ à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤¹à¥à¤ à¤¹à¥ˆà¤‚à¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤•à¥à¤› à¤¦à¥‡à¤° à¤¬à¤¾à¤¦ à¤«à¤¿à¤° à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤•à¤°à¥‡à¤‚à¥¤" },
       {
         status: 429,
         headers: {
@@ -120,7 +136,7 @@ export async function POST(request: Request) {
     if (verificationStatus === "EXPIRED") {
       response = {
         result: "expired",
-        message: "यह पंजीकरण रिकॉर्ड उपलब्ध है, लेकिन वर्तमान में इसकी वैधता समाप्त हो चुकी है।",
+        message: "à¤¯à¤¹ à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£ à¤°à¤¿à¤•à¥‰à¤°à¥à¤¡ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¹à¥ˆ, à¤²à¥‡à¤•à¤¿à¤¨ à¤µà¤°à¥à¤¤à¤®à¤¾à¤¨ à¤®à¥‡à¤‚ à¤‡à¤¸à¤•à¥€ à¤µà¥ˆà¤§à¤¤à¤¾ à¤¸à¤®à¤¾à¤ªà¥à¤¤ à¤¹à¥‹ à¤šà¥à¤•à¥€ à¤¹à¥ˆà¥¤",
       };
     } else if (
       verificationStatus === "SUSPENDED" ||
@@ -129,7 +145,7 @@ export async function POST(request: Request) {
       response = {
         result: "not_valid",
         message:
-          "यह पंजीकरण वर्तमान में सक्रिय संगठनात्मक प्रतिनिधित्व के लिए मान्य नहीं है। कृपया आधिकारिक प्रशासन से संपर्क करें।",
+          "à¤¯à¤¹ à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£ à¤µà¤°à¥à¤¤à¤®à¤¾à¤¨ à¤®à¥‡à¤‚ à¤¸à¤•à¥à¤°à¤¿à¤¯ à¤¸à¤‚à¤—à¤ à¤¨à¤¾à¤¤à¥à¤®à¤• à¤ªà¥à¤°à¤¤à¤¿à¤¨à¤¿à¤§à¤¿à¤¤à¥à¤µ à¤•à¥‡ à¤²à¤¿à¤ à¤®à¤¾à¤¨à¥à¤¯ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤†à¤§à¤¿à¤•à¤¾à¤°à¤¿à¤• à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤¨ à¤¸à¥‡ à¤¸à¤‚à¤ªà¤°à¥à¤• à¤•à¤°à¥‡à¤‚à¥¤",
       };
     } else if (
       verificationStatus === "ACTIVE" &&
@@ -162,8 +178,9 @@ export async function POST(request: Request) {
       code: "REGISTRATION_VERIFICATION_FAILED",
     });
     return NextResponse.json(
-      { error: "सत्यापन अभी उपलब्ध नहीं है। कृपया कुछ देर बाद फिर प्रयास करें।" },
+      { error: "à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¨ à¤…à¤­à¥€ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤•à¥à¤› à¤¦à¥‡à¤° à¤¬à¤¾à¤¦ à¤«à¤¿à¤° à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤•à¤°à¥‡à¤‚à¥¤" },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
+

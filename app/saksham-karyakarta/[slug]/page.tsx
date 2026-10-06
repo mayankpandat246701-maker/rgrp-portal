@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -29,6 +29,9 @@ async function findPublicMember(slug: string) {
       district: true,
       publicBio: true,
       profilePhotoPath: true,
+      appointmentStartDate: true,
+      appointmentEndDate: true,
+      appointmentDocumentPath: true,
       instagramUrl: true,
       facebookUrl: true,
       youtubeUrl: true,
@@ -49,14 +52,14 @@ async function findPublicMember(slug: string) {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const member = await findPublicMember(slug);
-  if (!member) return { title: "कार्यकर्ता प्रोफ़ाइल उपलब्ध नहीं है", robots: { index: false, follow: false } };
+  if (!member) return { title: "à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾ à¤ªà¥à¤°à¥‹à¤«à¤¼à¤¾à¤‡à¤² à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆ", robots: { index: false, follow: false } };
   return {
-    title: `${member.name} | सक्षम कार्यकर्ता`,
+    title: `${member.name} | à¤¸à¤•à¥à¤·à¤® à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾`,
     alternates: { canonical: `/saksham-karyakarta/${encodeURIComponent(member.slug)}` },
     description: [
       member.daitva,
       [member.district, member.state].filter(Boolean).join(", "),
-    ].filter(Boolean).join(" — "),
+    ].filter(Boolean).join(" â€” "),
   };
 }
 
@@ -76,13 +79,13 @@ export default async function KaryakartaProfilePage({ params }: PageProps) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-8 sm:py-14">
-      <Link className="text-sm font-semibold text-emerald-900 underline-offset-4 hover:underline" href="/saksham-karyakarta">← सभी सक्षम कार्यकर्ता</Link>
+      <Link className="text-sm font-semibold text-emerald-900 underline-offset-4 hover:underline" href="/saksham-karyakarta">â† à¤¸à¤­à¥€ à¤¸à¤•à¥à¤·à¤® à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾</Link>
       <article className="mt-6 overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
         <div className="bg-emerald-950 px-6 py-8 text-white sm:px-10">
           <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
             {member.profilePhotoPath ? (
               <Image
-                alt={`${member.name} का प्रोफ़ाइल चित्र`}
+                alt={`${member.name} à¤•à¤¾ à¤ªà¥à¤°à¥‹à¤«à¤¼à¤¾à¤‡à¤² à¤šà¤¿à¤¤à¥à¤°`}
                 className="h-28 w-28 rounded-full border-4 border-white/20 object-cover"
                 height={112}
                 src={`/api/saksham-karyakarta/${encodeURIComponent(member.slug)}/photo`}
@@ -92,7 +95,7 @@ export default async function KaryakartaProfilePage({ params }: PageProps) {
               <div aria-hidden="true" className="flex h-28 w-28 items-center justify-center rounded-full bg-emerald-800 text-4xl font-bold text-white">{member.name.slice(0, 1)}</div>
             )}
             <div>
-              <span className="inline-flex rounded-full bg-emerald-800 px-3 py-1 text-xs font-semibold text-emerald-100">✓ सत्यापित</span>
+              <span className="inline-flex rounded-full bg-emerald-800 px-3 py-1 text-xs font-semibold text-emerald-100">âœ“ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤</span>
               <h1 className="mt-3 text-3xl font-bold">{member.name}</h1>
               <p className="mt-2 text-emerald-100">{member.daitva}</p>
               <p className="mt-1 text-sm text-emerald-100/80">{[member.district, member.state].filter(Boolean).join(", ")}</p>
@@ -108,11 +111,41 @@ export default async function KaryakartaProfilePage({ params }: PageProps) {
               ))}
             </div>
           ) : null}
+          {member.appointmentStartDate || member.appointmentEndDate || member.appointmentDocumentPath ? (
+            <div className="mt-8 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+              <h2 className="text-base font-bold text-emerald-950">नियुक्ति जानकारी</h2>
+              {member.appointmentStartDate || member.appointmentEndDate ? (
+                <p className="mt-2 text-sm text-emerald-900">
+                  नियुक्ति अवधि:{" "}
+                  {[
+                    member.appointmentStartDate
+                      ? new Date(member.appointmentStartDate).toLocaleDateString("hi-IN")
+                      : null,
+                    member.appointmentEndDate
+                      ? new Date(member.appointmentEndDate).toLocaleDateString("hi-IN")
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" से ")}
+                </p>
+              ) : null}
+              {member.appointmentDocumentPath ? (
+                <a
+                  className="mt-3 inline-flex rounded-xl bg-emerald-800 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700"
+                  href={`/api/saksham-karyakarta/${encodeURIComponent(member.slug)}/appointment`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  नियुक्ति पत्र देखें
+                </a>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-8 border-t border-stone-200 pt-6">
             {registration ? (
-              <Link className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800" href={`/verify-id?reg=${encodeURIComponent(registration.registrationNumber)}`}>पंजीकरण सत्यापित करें</Link>
+              <Link className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800" href={`/verify-id?reg=${encodeURIComponent(registration.registrationNumber)}`}>à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤•à¤°à¥‡à¤‚</Link>
             ) : (
-              <p className="text-sm text-stone-600">पंजीकरण की जानकारी आधिकारिक प्रशासन से प्राप्त करें।</p>
+              <p className="text-sm text-stone-600">à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£ à¤•à¥€ à¤œà¤¾à¤¨à¤•à¤¾à¤°à¥€ à¤†à¤§à¤¿à¤•à¤¾à¤°à¤¿à¤• à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤¨ à¤¸à¥‡ à¤ªà¥à¤°à¤¾à¤ªà¥à¤¤ à¤•à¤°à¥‡à¤‚à¥¤</p>
             )}
           </div>
         </div>
@@ -120,3 +153,4 @@ export default async function KaryakartaProfilePage({ params }: PageProps) {
     </main>
   );
 }
+
