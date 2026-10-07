@@ -1,4 +1,7 @@
-﻿import { HeroSection } from "@/components/home/hero-section";
+import { HeroSection } from "@/components/home/hero-section";
+import { VerifyTrustSection } from "@/components/home/verify-trust-section";
+import { DirectoryPreviewSection } from "@/components/home/directory-preview-section";
+import { HowItWorksSection } from "@/components/home/how-it-works-section";
 import { IntroSection } from "@/components/home/intro-section";
 import { ServicesSection } from "@/components/home/services-section";
 import { SanghSection } from "@/components/home/sangh-section";
@@ -40,6 +43,9 @@ export default async function Home() {
   return (
     <>
       <HeroSection />
+      <VerifyTrustSection />
+      <DirectoryPreviewSection />
+      <HowItWorksSection />
       <IntroSection />
       <ServicesSection />
       <SanghSection messages={leadershipMessages} />

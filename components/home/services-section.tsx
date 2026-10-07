@@ -1,6 +1,13 @@
 import Link from "next/link";
-import { ArrowUpRight, BadgeCheck, FileSearch, FileUp, LogIn, QrCode, UserPlus } from "lucide-react";
-import { SectionHeading } from "@/components/home/section-heading";
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  FileSearch,
+  FileUp,
+  LogIn,
+  QrCode,
+  UserPlus,
+} from "lucide-react";
 
 const services = [
   {
@@ -8,21 +15,21 @@ const services = [
     icon: UserPlus,
     title: "कार्यकर्ता आवेदन",
     subtitle: "Karyakarta Application",
-    text: "परिषद से कार्यकर्ता के रूप में जुड़ने के लिए ऑनलाइन आवेदन करें।",
+    text: "परिषद से कार्यकर्ता के रूप में जुड़ने हेतु सरल ऑनलाइन आवेदन प्रक्रिया।",
   },
   {
     href: "/karyakarta/upload-documents",
     icon: FileUp,
-    title: "कार्यकर्ता दस्तावेज़ अपलोड",
+    title: "दस्तावेज़ अपलोड",
     subtitle: "Upload Documents",
-    text: "आवेदन हेतु आवश्यक दस्तावेज़ सुरक्षित रूप से अपलोड करें।",
+    text: "आवेदन हेतु आवश्यक दस्तावेज़ सुरक्षित एवं डिजिटल रूप से अपलोड करें।",
   },
   {
     href: "/application-status",
     icon: FileSearch,
-    title: "आवेदन स्थिति देखें",
+    title: "आवेदन स्थिति",
     subtitle: "Application Status",
-    text: "अपने आवेदन की वर्तमान स्थिति तुरंत जाँचें।",
+    text: "अपने आवेदन की वर्तमान स्थिति तुरंत जांचें और अपडेट देखें।",
   },
   {
     href: "/verify",
@@ -49,44 +56,84 @@ const services = [
 
 export function ServicesSection() {
   return (
-    <section id="services" aria-labelledby="services-title" className="scroll-mt-28 px-4 py-14 sm:px-6 lg:py-20">
-      <div className="mx-auto w-full max-w-6xl">
-        <SectionHeading
-          id="services-title"
-          eyebrow="पोर्टल सेवाएँ · Services"
-          title="कार्यकर्ता सेवाएँ एक ही स्थान पर"
-          description="आवेदन से लेकर सत्यापन तक, सभी महत्वपूर्ण सेवाएँ सरल और सुरक्षित रूप में।"
-        />
-        <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map(({ href, icon: Icon, title, subtitle, text }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                className="glass group flex h-full flex-col rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 hover:bg-white/80 hover:shadow-[0_20px_40px_-18px_rgba(120,60,15,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-saffron-700"
+    <section
+      id="services"
+      className="relative overflow-hidden bg-gradient-to-b from-orange-50/70 via-white to-orange-50/40 py-16 sm:py-20"
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-orange-200/30 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-amber-200/30 blur-3xl"
+      />
+
+      <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-orange-800">
+            Portal Services
+          </span>
+
+          <h2 className="mt-5 text-3xl font-black leading-tight tracking-tight text-slate-900 sm:text-4xl">
+            कार्यकर्ता सेवाएँ
+            <span className="mt-2 block bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">
+              एक ही स्थान पर
+            </span>
+          </h2>
+
+          <p className="mt-4 text-base leading-relaxed text-slate-600">
+            आवेदन से लेकर सत्यापन तक—सभी महत्वपूर्ण सेवाएँ सरल, सुरक्षित एवं डिजिटल रूप से उपलब्ध।
+          </p>
+        </div>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {services.map(({ href, icon: Icon, title, subtitle, text }, index) => (
+            <Link
+              key={href}
+              href={href}
+              className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-orange-100 bg-white/80 p-6 shadow-sm backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-900/5"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute right-5 top-5 text-5xl font-black text-orange-900/[0.05]"
               >
-                <div className="flex items-start justify-between">
-                  <span className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-saffron-500 to-saffron-700 text-white shadow-md">
-                    <Icon aria-hidden className="size-6" />
-                  </span>
-                  <ArrowUpRight
-                    aria-hidden
-                    className="size-5 text-cocoa-700 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-saffron-700"
-                  />
-                </div>
-                <h3 className="mt-5 font-serif text-xl font-bold text-cocoa-900">{title}</h3>
-                <p className="text-sm font-medium text-saffron-700">{subtitle}</p>
-                <p className="mt-3 leading-relaxed text-cocoa-700">{text}</p>
-              </Link>
-            </li>
+                {String(index + 1).padStart(2, "0")}
+              </span>
+
+              <div className="flex items-start justify-between">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-600 to-amber-500 text-white shadow-md shadow-orange-600/20">
+                  <Icon aria-hidden className="h-7 w-7" />
+                </span>
+
+                <ArrowUpRight
+                  aria-hidden
+                  className="h-5 w-5 text-slate-400 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-orange-600"
+                />
+              </div>
+
+              <h3 className="mt-5 text-lg font-bold text-slate-900">
+                {title}
+              </h3>
+
+              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-orange-700">
+                {subtitle}
+              </p>
+
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                {text}
+              </p>
+            </Link>
           ))}
-        </ul>
-        <p className="mt-8 text-center text-sm text-cocoa-700">
+        </div>
+
+        <p className="mt-10 text-center text-sm text-slate-600">
           प्रशासक हैं?{" "}
           <Link
             href="/admin/login"
-            className="font-semibold text-saffron-700 underline underline-offset-4 hover:text-saffron-600 focus-visible:outline-2 focus-visible:outline-saffron-700"
+            className="font-semibold text-orange-700 underline underline-offset-4 hover:text-orange-600"
           >
-            Admin Login / एडमिन लॉगिन
+            Admin Login
           </Link>
         </p>
       </div>

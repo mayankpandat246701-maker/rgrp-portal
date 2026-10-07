@@ -8,14 +8,429 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Admin {
+  id                    String                  @id @default(cuid())
+  name                  String
+  email                 String                  @unique
+  passwordHash          String
+  role                  AdminRole               @default(SUPER_ADMIN)
+  isActive              Boolean                 @default(true)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  assignedState         String?
+  assignedDistrict      String?
+  activities            AdminActivity[]
+  auditLogs             AdminAuditLog[]
+  authoredActivities    GroundActivity[]        @relation("GroundActivityAuthor")
+  uploadedTemplates     IDCardTemplate[]
+  generatedCertificates JoiningCertificate[]    @relation("CertificateGenerator")
+  createdKaryakartas    Karyakarta[]            @relation("KaryakartaCreator")
+  updatedKaryakartas    Karyakarta[]            @relation("KaryakartaUpdater")
+  verifiedApplications  KaryakartaApplication[] @relation("ApplicationDocumentVerifier")
+  authoredNewsPosts     NewsPost[]              @relation("NewsPostAuthor")
+  updatedSiteSettings   SiteSettings[]          @relation("SiteSettingsUpdater")
+}
+
+model Karyakarta {
+  id                      String                  @id @default(cuid())
+  regNo                   String                  @unique
+  name                    String
+  phone                   String                  @unique
+  email                   String?                 @unique
+  designation             String?
+  state                   String?
+  zone                    String?
+  district                String?
+  photoUrl                String?
+  status                  KaryakartaStatus        @default(PENDING)
+  approvedAt              DateTime?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  slug                    String                  @unique @default("")
+  daitva                  String?
+  tehsil                  String?
+  cityOrVillage           String?
+  profilePhotoPath        String?
+  publicBio               String?
+  joiningDate             DateTime?
+  isPublicProfile         Boolean                 @default(false)
+  profileStatus           KaryakartaProfileStatus @default(PENDING)
+  displayOrder            Int                     @default(0)
+  instagramUrl            String?
+  facebookUrl             String?
+  youtubeUrl              String?
+  whatsappContactUrl      String?
+  adminNotes              String?
+  archivedAt              DateTime?
+  createdById             String?
+  updatedById             String?
+  appointmentStartDate    DateTime?
+  appointmentEndDate      DateTime?
+  appointmentDocumentPath String?
+  isEmergencyHidden       Boolean                 @default(false)
+  isFeatured              Boolean                 @default(false)
+  lastLoginAt             DateTime?
+  idCardBackPath          String?
+  idCardFrontPath         String?
+  certificates            JoiningCertificate[]
+  createdBy               Admin?                  @relation("KaryakartaCreator", fields: [createdById], references: [id])
+  updatedBy               Admin?                  @relation("KaryakartaUpdater", fields: [updatedById], references: [id])
+  registrations           RegistrationCard[]
+  supportTickets          SupportTicket[]
+
+  @@index([profileStatus, isPublicProfile])
+  @@index([isEmergencyHidden, profileStatus, isPublicProfile])
+  @@index([state, district])
+  @@index([isFeatured, displayOrder])
+  @@index([displayOrder])
+  @@index([regNo])
+  @@index([phone])
+  @@index([email])
+  @@index([status])
+  @@index([state])
+  @@index([zone])
+  @@index([district])
+  @@index([createdAt])
+}
+
+model KaryakartaApplication {
+  id                   String                      @id @default(cuid())
+  applicationReference String                      @unique
+  fullName             String
+  fatherName           String
+  motherName           String
+  dateOfBirth          DateTime                    @db.Date
+  gender               String
+  category             String
+  mobile               String
+  alternateMobile      String?
+  email                String?
+  address              String
+  pincode              String
+  district             String
+  state                String
+  constituency         String
+  education            String
+  occupation           String
+  organizationName     String?
+  designation          String?
+  joiningReason        String?
+  socialMediaLinks     String?
+  referenceBy          String?
+  status               KaryakartaApplicationStatus @default(PENDING)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  photoPath            String?
+  aadhaarPath          String?
+  qrCodePath           String?
+  uploadStatus         UploadStatus                @default(PENDING)
+  documentReviewReason String?
+  verifiedByAdminId    String?
+  verifiedAt           DateTime?
+  idCardGeneratedAt    DateTime?
+  verifiedByAdmin      Admin?                      @relation("ApplicationDocumentVerifier", fields: [verifiedByAdminId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([mobile])
+  @@index([uploadStatus])
+}
+
+model IDCardTemplate {
+  id                String   @id @default(cuid())
+  templatePath      String
+  uploadedByAdminId String
+  uploadedAt        DateTime @default(now())
+  isActive          Boolean  @default(true)
+  uploadedByAdmin   Admin    @relation(fields: [uploadedByAdminId], references: [id])
+
+  @@index([isActive])
+  @@index([uploadedAt])
+}
+
+model AdminAuditLog {
+  id            String           @id @default(cuid())
+  adminId       String
+  action        AdminAuditAction
+  applicationId String?
+  metadata      Json?
+  createdAt     DateTime         @default(now())
+  karyakartaId  String?
+  admin         Admin            @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([applicationId])
+  @@index([karyakartaId])
+  @@index([createdAt])
+}
+
+model Notice {
+  id          String       @id @default(cuid())
+  title       String
+  content     String
+  isFeatured  Boolean      @default(false)
+  status      NoticeStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LeadershipMessage {
+  id             String   @id @default(cuid())
+  name           String
+  designation    String
+  message        String
+  portraitUrl    String?
+  sortOrder      Int      @default(0)
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  displayOrder   Int      @default(0)
+  showOnHomepage Boolean  @default(true)
+  state          String?
+  district       String?
+
+  @@index([isPublished, sortOrder])
+  @@index([isPublished, showOnHomepage, displayOrder])
+}
+
+model RegistrationCard {
+  id                 String                 @id @default(cuid())
+  karyakartaId       String
+  registrationNumber String                 @unique
+  status             RegistrationCardStatus @default(PENDING)
+  issueDate          DateTime?
+  expiryDate         DateTime?
+  revokedReason      String?
+  reissuedFromId     String?
+  createdById        String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  certificates       JoiningCertificate[]
+  karyakarta         Karyakarta             @relation(fields: [karyakartaId], references: [id])
+
+  @@index([karyakartaId, status])
+  @@index([expiryDate])
+}
+
+model OfficialSocialLink {
+  id                String                 @id @default(cuid())
+  title             String
+  platform          String
+  url               String
+  level             OfficialLinkLevel
+  state             String?
+  district          String?
+  description       String?
+  contactPersonName String?
+  isPublic          Boolean                @default(true)
+  isActive          Boolean                @default(true)
+  visibility        OfficialLinkVisibility @default(PUBLIC)
+  displayOrder      Int                    @default(0)
+  createdById       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([level, state, district])
+  @@index([isPublic, isActive, visibility, displayOrder])
+}
+
+model RegistrationVerificationLog {
+  id               String   @id @default(cuid())
+  registrationHash String
+  resultType       String
+  createdAt        DateTime @default(now())
+
+  @@index([registrationHash, createdAt])
+  @@index([createdAt])
+}
+
+model CertificateVerificationLog {
+  id              String   @id @default(cuid())
+  certificateHash String
+  resultType      String
+  createdAt       DateTime @default(now())
+
+  @@index([certificateHash, createdAt])
+  @@index([createdAt])
+}
+
+model AdminActivity {
+  id        String   @id @default(cuid())
+  adminId   String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  admin     Admin?   @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([createdAt])
+}
+
+model SiteSettings {
+  id                String   @id @default("global")
+  logoStorageKey    String?
+  logoMimeType      String?
+  faviconStorageKey String?
+  ogImageStorageKey String?
+  updatedById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  updatedBy         Admin?   @relation("SiteSettingsUpdater", fields: [updatedById], references: [id])
+
+  @@index([updatedAt])
+}
+
+model NewsPost {
+  id                   String    @id @default(cuid())
+  slug                 String    @unique
+  title                String
+  shortSummary         String
+  fullContent          String
+  coverImageStorageKey String?
+  coverImageAltHindi   String?
+  category             String
+  tags                 String[]  @default([])
+  state                String?
+  district             String?
+  isPublished          Boolean   @default(false)
+  isFeatured           Boolean   @default(false)
+  homepageDisplayOrder Int?
+  scheduledPublishAt   DateTime?
+  publishedAt          DateTime?
+  expiresAt            DateTime?
+  archivedAt           DateTime?
+  authorId             String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  author               Admin?    @relation("NewsPostAuthor", fields: [authorId], references: [id])
+
+  @@index([isPublished, archivedAt, scheduledPublishAt, expiresAt])
+  @@index([isFeatured, homepageDisplayOrder, publishedAt])
+  @@index([state, district])
+  @@index([publishedAt])
+  @@index([expiresAt])
+}
+
+model GroundActivity {
+  id                   String                @id @default(cuid())
+  slug                 String                @unique
+  title                String
+  shortSummary         String
+  fullDescription      String
+  activityType         String
+  coverImageStorageKey String?
+  coverImageAltHindi   String?
+  activityDate         DateTime
+  state                String
+  district             String
+  tehsilOrBlock        String?
+  cityOrVillage        String?
+  publicLocationLabel  String?
+  exactLocationPublic  Boolean               @default(false)
+  mapLink              String?
+  isPublished          Boolean               @default(false)
+  isFeaturedOnHomepage Boolean               @default(false)
+  homepageDisplayOrder Int?
+  scheduledPublishAt   DateTime?
+  publishedAt          DateTime?
+  expiresAt            DateTime?
+  archivedAt           DateTime?
+  authorId             String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  author               Admin?                @relation("GroundActivityAuthor", fields: [authorId], references: [id])
+  images               GroundActivityImage[]
+
+  @@index([isPublished, archivedAt, scheduledPublishAt, expiresAt])
+  @@index([isFeaturedOnHomepage, homepageDisplayOrder, publishedAt])
+  @@index([state, district])
+  @@index([activityDate])
+  @@index([expiresAt])
+}
+
+model GroundActivityImage {
+  id               String         @id @default(cuid())
+  groundActivityId String
+  storageKey       String
+  altTextHindi     String?
+  displayOrder     Int            @default(0)
+  isPublic         Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  groundActivity   GroundActivity @relation(fields: [groundActivityId], references: [id])
+
+  @@index([groundActivityId, isPublic, displayOrder])
+}
+
+model JoiningCertificate {
+  id                     String                   @id @default(cuid())
+  certificateNumber      String                   @unique
+  karyakartaId           String
+  registrationCardId     String
+  status                 JoiningCertificateStatus @default(ACTIVE)
+  issueDate              DateTime                 @default(now())
+  generatedAt            DateTime                 @default(now())
+  generatedByAdminId     String?
+  templateVersion        String                   @default("1")
+  fileStorageKey         String
+  reissuedFromId         String?
+  revokedAt              DateTime?
+  revokedReasonAdminOnly String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  generatedByAdmin       Admin?                   @relation("CertificateGenerator", fields: [generatedByAdminId], references: [id])
+  karyakarta             Karyakarta               @relation(fields: [karyakartaId], references: [id])
+  registrationCard       RegistrationCard         @relation(fields: [registrationCardId], references: [id])
+  reissuedFrom           JoiningCertificate?      @relation("CertificateReissues", fields: [reissuedFromId], references: [id])
+  reissuedCertificates   JoiningCertificate[]     @relation("CertificateReissues")
+
+  @@index([karyakartaId, status])
+  @@index([registrationCardId, status])
+  @@index([generatedByAdminId])
+  @@index([reissuedFromId])
+  @@index([issueDate])
+}
+
+model SupportTicket {
+  id            String                @id @default(cuid())
+  karyakartaId  String
+  category      SupportTicketCategory
+  subject       String
+  message       String
+  status        SupportTicketStatus   @default(OPEN)
+  adminResponse String?
+  resolvedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  karyakarta    Karyakarta            @relation(fields: [karyakartaId], references: [id], onDelete: Cascade)
+
+  @@index([karyakartaId, status])
+  @@index([status, createdAt])
+}
+
 enum AdminRole {
   SUPER_ADMIN
   NATIONAL_ADMIN
+  CONTENT_ADMIN
+  VIEWER
   STATE_ADMIN
   DISTRICT_ADMIN
-  CONTENT_ADMIN
   CONTENT_EDITOR
-  VIEWER
 }
 
 enum KaryakartaProfileStatus {
@@ -95,404 +510,6 @@ enum NoticeStatus {
   ARCHIVED
 }
 
-model Admin {
-  id                    String                  @id @default(cuid())
-  name                  String
-  email                 String                  @unique
-  passwordHash          String
-  role                  AdminRole               @default(SUPER_ADMIN)
-  assignedState         String?
-  assignedDistrict      String?
-  isActive              Boolean                 @default(true)
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  activities            AdminActivity[]
-  auditLogs             AdminAuditLog[]
-  uploadedTemplates     IDCardTemplate[]
-  verifiedApplications  KaryakartaApplication[] @relation("ApplicationDocumentVerifier")
-  createdKaryakartas    Karyakarta[]            @relation("KaryakartaCreator")
-  updatedKaryakartas    Karyakarta[]            @relation("KaryakartaUpdater")
-  authoredNewsPosts     NewsPost[]              @relation("NewsPostAuthor")
-  authoredActivities    GroundActivity[]        @relation("GroundActivityAuthor")
-  updatedSiteSettings   SiteSettings[]          @relation("SiteSettingsUpdater")
-  generatedCertificates JoiningCertificate[]    @relation("CertificateGenerator")
-}
-
-model Karyakarta {
-  id                      String                  @id @default(cuid())
-  regNo                   String                  @unique
-  slug                    String                  @unique @default("")
-  name                    String
-  phone                   String                  @unique
-  email                   String?                 @unique
-  designation             String?
-  daitva                  String?
-  state                   String?
-  zone                    String?
-  district                String?
-  tehsil                  String?
-  cityOrVillage           String?
-  photoUrl                String?
-  profilePhotoPath        String?
-  idCardFrontPath         String?
-  idCardBackPath          String?
-  publicBio               String?
-  joiningDate             DateTime?
-  appointmentStartDate    DateTime?
-  appointmentEndDate      DateTime?
-  appointmentDocumentPath String?
-  isPublicProfile         Boolean                 @default(false)
-  isEmergencyHidden       Boolean                 @default(false)
-  isFeatured              Boolean                 @default(false)
-  profileStatus           KaryakartaProfileStatus @default(PENDING)
-  displayOrder            Int                     @default(0)
-  instagramUrl            String?
-  facebookUrl             String?
-  youtubeUrl              String?
-  whatsappContactUrl      String?
-  adminNotes              String?
-  archivedAt              DateTime?
-  lastLoginAt             DateTime?
-  createdById             String?
-  updatedById             String?
-  status                  KaryakartaStatus        @default(PENDING)
-  approvedAt              DateTime?
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
-  registrations           RegistrationCard[]
-  certificates            JoiningCertificate[]
-  supportTickets        SupportTicket[]
-  createdBy               Admin?                  @relation("KaryakartaCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy               Admin?                  @relation("KaryakartaUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
-
-  @@index([profileStatus, isPublicProfile])
-  @@index([isEmergencyHidden, profileStatus, isPublicProfile])
-  @@index([state, district])
-  @@index([isFeatured, displayOrder])
-  @@index([displayOrder])
-  @@index([regNo])
-  @@index([phone])
-  @@index([email])
-  @@index([status])
-  @@index([state])
-  @@index([zone])
-  @@index([district])
-  @@index([createdAt])
-}
-
-model KaryakartaApplication {
-  id                   String                      @id @default(cuid())
-  applicationReference String                      @unique
-  fullName             String
-  fatherName           String
-  motherName           String
-  dateOfBirth          DateTime                    @db.Date
-  gender               String
-  category             String
-  mobile               String
-  alternateMobile      String?
-  email                String?
-  address              String
-  pincode              String
-  district             String
-  state                String
-  constituency         String
-  education            String
-  occupation           String
-  organizationName     String?
-  designation          String?
-  joiningReason        String?
-  socialMediaLinks     String?
-  referenceBy          String?
-  status               KaryakartaApplicationStatus @default(PENDING)
-  photoPath            String?
-  aadhaarPath          String?
-  qrCodePath           String?
-  uploadStatus         UploadStatus                @default(PENDING)
-  documentReviewReason String?
-  verifiedByAdminId    String?
-  verifiedAt           DateTime?
-  idCardGeneratedAt    DateTime?
-  createdAt            DateTime                    @default(now())
-  updatedAt            DateTime                    @updatedAt
-  verifiedByAdmin      Admin?                      @relation("ApplicationDocumentVerifier", fields: [verifiedByAdminId], references: [id], onDelete: SetNull)
-
-  @@index([status])
-  @@index([createdAt])
-  @@index([mobile])
-  @@index([uploadStatus])
-}
-
-model IDCardTemplate {
-  id                String   @id @default(cuid())
-  templatePath      String
-  uploadedByAdminId String
-  uploadedAt        DateTime @default(now())
-  isActive          Boolean  @default(true)
-  uploadedByAdmin   Admin    @relation(fields: [uploadedByAdminId], references: [id], onDelete: Restrict)
-
-  @@index([isActive])
-  @@index([uploadedAt])
-}
-
-model AdminAuditLog {
-  id            String           @id @default(cuid())
-  adminId       String
-  action        AdminAuditAction
-  applicationId String?
-  karyakartaId  String?
-  metadata      Json?
-  createdAt     DateTime         @default(now())
-  admin         Admin            @relation(fields: [adminId], references: [id], onDelete: Restrict)
-
-  @@index([adminId])
-  @@index([applicationId])
-  @@index([karyakartaId])
-  @@index([createdAt])
-}
-
-model Notice {
-  id          String       @id @default(cuid())
-  title       String
-  content     String
-  isFeatured  Boolean      @default(false)
-  status      NoticeStatus @default(DRAFT)
-  publishedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  @@index([status])
-  @@index([publishedAt])
-}
-
-model SiteContent {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  title     String?
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model LeadershipMessage {
-  id             String   @id @default(cuid())
-  name           String
-  designation    String
-  message        String
-  portraitUrl    String?
-  sortOrder      Int      @default(0)
-  displayOrder   Int      @default(0)
-  showOnHomepage Boolean  @default(true)
-  state          String?
-  district       String?
-  isPublished    Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([isPublished, sortOrder])
-  @@index([isPublished, showOnHomepage, displayOrder])
-}
-
-model RegistrationCard {
-  id                 String                 @id @default(cuid())
-  karyakartaId       String
-  registrationNumber String                 @unique
-  status             RegistrationCardStatus @default(PENDING)
-  issueDate          DateTime?
-  expiryDate         DateTime?
-  revokedReason      String?
-  reissuedFromId     String?
-  createdById        String?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  karyakarta         Karyakarta             @relation(fields: [karyakartaId], references: [id], onDelete: Restrict)
-  certificates       JoiningCertificate[]
-
-  @@index([karyakartaId, status])
-  @@index([expiryDate])
-}
-
-model OfficialSocialLink {
-  id                String                 @id @default(cuid())
-  title             String
-  platform          String
-  url               String
-  level             OfficialLinkLevel
-  state             String?
-  district          String?
-  description       String?
-  contactPersonName String?
-  isPublic          Boolean                @default(true)
-  isActive          Boolean                @default(true)
-  visibility        OfficialLinkVisibility @default(PUBLIC)
-  displayOrder      Int                    @default(0)
-  createdById       String?
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-
-  @@index([level, state, district])
-  @@index([isPublic, isActive, visibility, displayOrder])
-}
-
-model RegistrationVerificationLog {
-  id               String   @id @default(cuid())
-  registrationHash String
-  resultType       String
-  createdAt        DateTime @default(now())
-
-  @@index([registrationHash, createdAt])
-  @@index([createdAt])
-}
-
-model CertificateVerificationLog {
-  id              String   @id @default(cuid())
-  certificateHash String
-  resultType      String
-  createdAt       DateTime @default(now())
-
-  @@index([certificateHash, createdAt])
-  @@index([createdAt])
-}
-
-model AdminActivity {
-  id        String   @id @default(cuid())
-  adminId   String?
-  action    String
-  entity    String?
-  entityId  String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-  admin     Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
-
-  @@index([adminId])
-  @@index([createdAt])
-}
-
-model SiteSettings {
-  id                String   @id @default("global")
-  logoStorageKey    String?
-  logoMimeType      String?
-  faviconStorageKey String?
-  ogImageStorageKey String?
-  updatedById       String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  updatedBy         Admin?   @relation("SiteSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
-
-  @@index([updatedAt])
-}
-
-model NewsPost {
-  id                   String    @id @default(cuid())
-  slug                 String    @unique
-  title                String
-  shortSummary         String
-  fullContent          String
-  coverImageStorageKey String?
-  coverImageAltHindi   String?
-  category             String
-  tags                 String[]  @default([])
-  state                String?
-  district             String?
-  isPublished          Boolean   @default(false)
-  isFeatured           Boolean   @default(false)
-  homepageDisplayOrder Int?
-  scheduledPublishAt   DateTime?
-  publishedAt          DateTime?
-  expiresAt            DateTime?
-  archivedAt           DateTime?
-  authorId             String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  author               Admin?    @relation("NewsPostAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-
-  @@index([isPublished, archivedAt, scheduledPublishAt, expiresAt])
-  @@index([isFeatured, homepageDisplayOrder, publishedAt])
-  @@index([state, district])
-  @@index([publishedAt])
-  @@index([expiresAt])
-}
-
-model GroundActivity {
-  id                   String                @id @default(cuid())
-  slug                 String                @unique
-  title                String
-  shortSummary         String
-  fullDescription      String
-  activityType         String
-  coverImageStorageKey String?
-  coverImageAltHindi   String?
-  activityDate         DateTime
-  state                String
-  district             String
-  tehsilOrBlock        String?
-  cityOrVillage        String?
-  publicLocationLabel  String?
-  exactLocationPublic  Boolean               @default(false)
-  mapLink              String?
-  isPublished          Boolean               @default(false)
-  isFeaturedOnHomepage Boolean               @default(false)
-  homepageDisplayOrder Int?
-  scheduledPublishAt   DateTime?
-  publishedAt          DateTime?
-  expiresAt            DateTime?
-  archivedAt           DateTime?
-  authorId             String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  author               Admin?                @relation("GroundActivityAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-  images               GroundActivityImage[]
-
-  @@index([isPublished, archivedAt, scheduledPublishAt, expiresAt])
-  @@index([isFeaturedOnHomepage, homepageDisplayOrder, publishedAt])
-  @@index([state, district])
-  @@index([activityDate])
-  @@index([expiresAt])
-}
-
-model GroundActivityImage {
-  id               String         @id @default(cuid())
-  groundActivityId String
-  storageKey       String
-  altTextHindi     String?
-  displayOrder     Int            @default(0)
-  isPublic         Boolean        @default(false)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  groundActivity   GroundActivity @relation(fields: [groundActivityId], references: [id], onDelete: Restrict)
-
-  @@index([groundActivityId, isPublic, displayOrder])
-}
-
-model JoiningCertificate {
-  id                     String                   @id @default(cuid())
-  certificateNumber      String                   @unique
-  karyakartaId           String
-  registrationCardId     String
-  status                 JoiningCertificateStatus @default(ACTIVE)
-  issueDate              DateTime                 @default(now())
-  generatedAt            DateTime                 @default(now())
-  generatedByAdminId     String?
-  templateVersion        String                   @default("1")
-  fileStorageKey         String
-  reissuedFromId         String?
-  revokedAt              DateTime?
-  revokedReasonAdminOnly String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  karyakarta             Karyakarta               @relation(fields: [karyakartaId], references: [id], onDelete: Restrict)
-  registrationCard       RegistrationCard         @relation(fields: [registrationCardId], references: [id], onDelete: Restrict)
-  generatedByAdmin       Admin?                   @relation("CertificateGenerator", fields: [generatedByAdminId], references: [id], onDelete: SetNull)
-  reissuedFrom           JoiningCertificate?      @relation("CertificateReissues", fields: [reissuedFromId], references: [id], onDelete: SetNull)
-  reissuedCertificates   JoiningCertificate[]     @relation("CertificateReissues")
-
-  @@index([karyakartaId, status])
-  @@index([registrationCardId, status])
-  @@index([generatedByAdminId])
-  @@index([reissuedFromId])
-  @@index([issueDate])
-}
-
 enum SupportTicketStatus {
   OPEN
   IN_REVIEW
@@ -508,21 +525,4 @@ enum SupportTicketCategory {
   MOBILE_NUMBER_CHANGE
   DOCUMENT_REUPLOAD
   OTHER
-}
-
-model SupportTicket {
-  id             String                 @id @default(cuid())
-  karyakartaId   String
-  category       SupportTicketCategory
-  subject        String
-  message        String
-  status         SupportTicketStatus    @default(OPEN)
-  adminResponse  String?
-  resolvedAt     DateTime?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  karyakarta     Karyakarta             @relation(fields: [karyakartaId], references: [id], onDelete: Cascade)
-
-  @@index([karyakartaId, status])
-  @@index([status, createdAt])
 }

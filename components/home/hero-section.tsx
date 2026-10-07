@@ -1,60 +1,134 @@
+import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { GlassLink } from "@/components/ui/glass-button";
 
 export function HeroSection() {
   return (
-    <section aria-labelledby="hero-title" className="px-4 pt-8 pb-12 sm:px-6 sm:pt-12 lg:pb-20">
-      <div className="glass-strong mx-auto grid w-full max-w-6xl items-center gap-10 rounded-[2rem] p-6 sm:p-10 lg:grid-cols-[1.1fr_0.9fr] lg:p-14">
-        <div>
-          <p className="text-sm font-semibold tracking-[0.18em] text-saffron-700 uppercase">
-            Rashtriya Gau Raksha Parishad
-          </p>
-          <h1
-            id="hero-title"
-            className="mt-4 font-serif text-4xl leading-tight font-bold text-balance text-cocoa-900 sm:text-5xl lg:text-6xl"
-          >
-            राष्ट्रीय गौ रक्षा परिषद
+    <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-white">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-orange-300/30 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-32 top-40 h-96 w-96 rounded-full bg-amber-300/25 blur-3xl"
+      />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      >
+        <Image
+          src="/images/rgrp-logo.png"
+          alt=""
+          width={640}
+          height={640}
+          priority={false}
+          className="h-auto w-[70%] max-w-[640px] opacity-[0.12] mix-blend-multiply sm:w-[45%]"
+        />
+      </div>
+
+      <div className="relative mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+        <div className="mx-auto max-w-3xl p-7 text-center sm:p-12">
+          <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50/80 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-orange-800">
+            <span className="h-2 w-2 rounded-full bg-orange-500" />
+            राष्ट्रीय गौ रक्षा परिषद भारत
+          </span>
+
+          <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+            सशक्त कार्यकर्ता,
+            <span className="block bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 bg-clip-text text-transparent">
+              सशक्त संगठन
+            </span>
           </h1>
-          <p className="mt-3 text-xl font-medium text-cocoa-700 sm:text-2xl">Rashtriya Gau Raksha Parishad</p>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-cocoa-800">
-            गौ माता की सेवा, संरक्षण और सम्मान के लिए समर्पित एक राष्ट्रव्यापी संगठन। कार्यकर्ता के रूप में जुड़ें और
-            गौ रक्षा के इस अभियान का हिस्सा बनें।
+
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
+            RGRP के सत्यापित सक्षम कार्यकर्ताओं को खोजें, पहचान पत्र और
+            प्रमाणपत्र सत्यापित करें, तथा संगठन की गतिविधियों से जुड़ें।
           </p>
 
-          <p className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-4 py-1.5 text-sm font-medium text-cocoa-800">
-            <CheckCircle2 aria-hidden className="size-4 text-saffron-600" />
-            RGRP Portal Foundation is Ready
-          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/saksham-karyakarta"
+              className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-600/25 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-600/30 sm:w-auto"
+            >
+              Saksham Directory देखें
+              <span className="transition group-hover:translate-x-0.5">→</span>
+            </Link>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <GlassLink href="/join" size="lg" variant="primary">
-              कार्यकर्ता आवेदन करें
-              <ArrowRight aria-hidden className="size-5" />
-            </GlassLink>
-            <GlassLink href="/application-status" size="lg" variant="secondary">
-              आवेदन स्थिति देखें
-            </GlassLink>
+            <Link
+              href="/#ground-activities"
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/70 bg-white/70 px-7 py-3.5 text-sm font-bold text-slate-800 shadow-sm backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:bg-white sm:w-auto"
+            >
+              हमारी गतिविधियाँ देखें
+            </Link>
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs font-semibold text-slate-600">
+            <span className="inline-flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-700">
+                ✓
+              </span>
+              Verified Karyakarta
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-700">
+                ✓
+              </span>
+              Transparent Process
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-700">
+                ✓
+              </span>
+              PAN India Network
+            </span>
           </div>
         </div>
 
-        <div className="relative">
-          <div className="overflow-hidden rounded-[1.5rem] border border-white/70 shadow-[0_25px_50px_-20px_rgba(120,60,15,0.45)]">
-            <Image
-              src="/images/hero-gau.png"
-              alt="सूर्योदय के समय गौशाला में खड़ी गाय और बछड़ा"
-              width={1024}
-              height={1024}
-              priority
-              className="aspect-[4/3] h-auto w-full object-cover lg:aspect-square"
-            />
-          </div>
-          <div className="glass absolute -bottom-5 left-4 rounded-2xl px-4 py-3 sm:left-6">
-            <p className="font-serif text-lg font-bold text-cocoa-900">गौ सेवा · राष्ट्र सेवा</p>
-            <p className="text-xs text-cocoa-700">सेवा, संरक्षण और जन जागरण</p>
-          </div>
+        <div className="mx-auto mt-10 grid max-w-4xl gap-4 sm:grid-cols-3">
+          <GlassCard
+            title="सक्षम कार्यकर्ता"
+            description="राज्य और जिला अनुसार सत्यापित कार्यकर्ता खोजें।"
+            href="/saksham-karyakarta"
+          />
+          <GlassCard
+            title="पहचान सत्यापन"
+            description="iCard या प्रमाणपत्र की वैधता तुरंत जांचें।"
+            href="/#ground-activities"
+          />
+          <GlassCard
+            title="संगठन से जुड़ें"
+            description="समाचार, गतिविधियां और अधिकारिक अपडेट देखें।"
+            href="/#news"
+          />
         </div>
       </div>
     </section>
+  );
+}
+
+function GlassCard({
+  title,
+  description,
+  href,
+}: {
+  title: string;
+  description: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-2xl border border-white/60 bg-white/60 p-5 shadow-sm backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-orange-200 hover:bg-white/80 hover:shadow-lg hover:shadow-orange-900/5"
+    >
+      <h3 className="text-base font-bold text-slate-900">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        {description}
+      </p>
+      <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-orange-700">
+        जानें
+        <span className="transition group-hover:translate-x-0.5">→</span>
+      </span>
+    </Link>
   );
 }
