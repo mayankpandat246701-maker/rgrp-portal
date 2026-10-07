@@ -113,7 +113,7 @@ export function NewsForm({
     <form id="news-form" className="mt-7 space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8" onSubmit={save}>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-semibold">शीर्षक<input className="mt-1 min-h-11 w-full rounded-lg border px-3 font-normal" maxLength={180} onChange={(e) => patch("title", e.target.value)} required value={post.title} /></label>
-        <label className="text-sm font-semibold">URL पहचान (अंग्रेज़ी अक्षर)<input className="mt-1 min-h-11 w-full rounded-lg border px-3 font-mono font-normal" maxLength={120} onChange={(e) => patch("slug", e.target.value)} pattern="[a-z0-9]+(-[a-z0-9]+)*" required value={post.slug} /></label>
+        
         <label className="text-sm font-semibold sm:col-span-2">संक्षिप्त विवरण<textarea className="mt-1 min-h-20 w-full rounded-lg border px-3 py-2 font-normal" maxLength={600} onChange={(e) => patch("shortSummary", e.target.value)} required value={post.shortSummary} /></label>
         <label className="text-sm font-semibold sm:col-span-2">पूरा समाचार<textarea className="mt-1 min-h-56 w-full rounded-lg border px-3 py-2 font-normal" maxLength={20000} onChange={(e) => patch("fullContent", e.target.value)} required value={post.fullContent} /></label>
         <label className="text-sm font-semibold">श्रेणी<select className="mt-1 min-h-11 w-full rounded-lg border px-3 font-normal" onChange={(e) => patch("category", e.target.value)} value={post.category}>{newsCategories.map((category) => <option key={category}>{category}</option>)}</select></label>
