@@ -28,21 +28,22 @@ export async function GET(request: Request) {
   const member = await getCurrentKaryakarta();
   if (!member) {
     return NextResponse.json(
-      { success: false, error: { message: "à¤ªà¤¹à¤²à¥‡ à¤ªà¥à¤°à¤µà¥‡à¤¶ à¤•à¤°à¥‡à¤‚à¥¤" } },
+      { success: false, error: { message: "पहले कार्यकर्ता के रूप में प्रवेश करें।" } },
       { status: 401, headers: { "Cache-Control": "no-store" } },
     );
   }
 
   if (!isIdCardRateLimitAvailable()) {
     return NextResponse.json(
-      { success: false, error: { message: "à¤¸à¥‡à¤µà¤¾ à¤…à¤­à¥€ à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¨à¤¹à¥€à¤‚ à¤¹à¥ˆà¥¤" } },
-      { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+      { success: false, error: { message: "सेवा अभी उपलब्ध नहीं है। कृपया कुछ देर बाद फिर प्रयास करें।" } },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
+
   const limit = await checkIdCardLimit(`member:${member.id}:${requestIp(request)}`);
   if (!limit.allowed) {
     return NextResponse.json(
-      { success: false, error: { message: "à¤¬à¤¹à¥à¤¤ à¤…à¤§à¤¿à¤• à¤ªà¥à¤°à¤¯à¤¾à¤¸ à¤•à¤¿à¤ à¤—à¤à¥¤" } },
+      { success: false, error: { message: "बहुत अधिक प्रयास किए गए। कृपया कुछ देर बाद फिर प्रयास करें।" } },
       {
         status: 429,
         headers: {
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
   );
   if (!query.success) {
     return NextResponse.json(
-      { success: false, error: { message: "à¤…à¤¨à¥à¤°à¥‹à¤§ à¤…à¤®à¤¾à¤¨à¥à¤¯ à¤¹à¥ˆà¥¤" } },
+      { success: false, error: { message: "अनुरोध अमान्य है।" } },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
       },
     },
   });
+
   const registration = record?.registrations[0] ?? null;
   const eligible = Boolean(
     record &&
@@ -101,6 +103,7 @@ export async function GET(request: Request) {
         registrationExpiryDate: registration.expiryDate,
       }),
   );
+
   if (!eligible || !record?.idCardFrontPath) {
     return NextResponse.json(
       {
@@ -108,7 +111,7 @@ export async function GET(request: Request) {
         data: {
           available: false,
           message:
-            "à¤†à¤ªà¤•à¤¾ à¤•à¤¾à¤°à¥à¤¯à¤•à¤°à¥à¤¤à¤¾ à¤ªà¥à¤°à¥‹à¤«à¤¼à¤¾à¤‡à¤² à¤…à¤­à¥€ à¤ªà¥à¤°à¤¶à¤¾à¤¸à¤¨ à¤¦à¥à¤µà¤¾à¤°à¤¾ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤¨à¤¹à¥€à¤‚ à¤¹à¥à¤† à¤¹à¥ˆà¥¤ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¨ à¤•à¥‡ à¤¬à¤¾à¤¦ à¤¹à¥€ à¤ªà¤¹à¤šà¤¾à¤¨ à¤ªà¤¤à¥à¤° à¤‰à¤ªà¤²à¤¬à¥à¤§ à¤¹à¥‹à¤—à¤¾à¥¤",
+            "आपका कार्यकर्ता प्रोफ़ाइल अभी प्रशासन द्वारा सत्यापित नहीं हुआ है। सत्यापन के बाद ही पहचान पत्र उपलब्ध होगा।",
         },
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -131,17 +134,22 @@ export async function GET(request: Request) {
   const { readEncryptedPrivateFile } = await import("@/lib/private-uploads");
   const storagePath =
     query.data.side === "back" ? record.idCardBackPath : record.idCardFrontPath;
+
   if (!storagePath) return new NextResponse(null, { status: 404 });
 
   try {
     const image = await readEncryptedPrivateFile(storagePath);
-    await prisma.adminAuditLog.create({
-      data: {
-        adminId: member.id,
-        action: "ID_CARD_DOWNLOADED",
-        karyakartaId: member.id,
-      },
-    }).catch(() => undefined);
+
+    await prisma.adminAuditLog
+      .create({
+        data: {
+          adminId: member.id,
+          action: "ID_CARD_DOWNLOADED",
+          karyakartaId: member.id,
+        },
+      })
+      .catch(() => undefined);
+
     return new NextResponse(new Uint8Array(image), {
       headers: {
         "Content-Type": contentTypeFor(storagePath),
@@ -153,5 +161,3 @@ export async function GET(request: Request) {
     return new NextResponse(null, { status: 404 });
   }
 }
-
-
