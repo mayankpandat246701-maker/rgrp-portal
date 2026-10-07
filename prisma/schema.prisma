@@ -161,6 +161,7 @@ model Karyakarta {
   updatedAt               DateTime                @updatedAt
   registrations           RegistrationCard[]
   certificates            JoiningCertificate[]
+  supportTickets        SupportTicket[]
   createdBy               Admin?                  @relation("KaryakartaCreator", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy               Admin?                  @relation("KaryakartaUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 
@@ -490,4 +491,38 @@ model JoiningCertificate {
   @@index([generatedByAdminId])
   @@index([reissuedFromId])
   @@index([issueDate])
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum SupportTicketCategory {
+  PROFILE_CORRECTION
+  ID_CARD_ISSUE
+  CERTIFICATE_ISSUE
+  REGISTRATION_RENEWAL
+  MOBILE_NUMBER_CHANGE
+  DOCUMENT_REUPLOAD
+  OTHER
+}
+
+model SupportTicket {
+  id             String                 @id @default(cuid())
+  karyakartaId   String
+  category       SupportTicketCategory
+  subject        String
+  message        String
+  status         SupportTicketStatus    @default(OPEN)
+  adminResponse  String?
+  resolvedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  karyakarta     Karyakarta             @relation(fields: [karyakartaId], references: [id], onDelete: Cascade)
+
+  @@index([karyakartaId, status])
+  @@index([status, createdAt])
 }

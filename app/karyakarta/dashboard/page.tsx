@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { KaryakartaIdCardPanel } from "@/app/karyakarta/dashboard/karyakarta-id-card-panel";
+import { SupportTicketPanel } from "@/app/karyakarta/dashboard/support-ticket-panel";
 import { getCurrentKaryakarta } from "@/lib/auth/require-karyakarta";
 import { isSakshamKaryakartaEligible } from "@/lib/saksham-karyakarta-eligibility";
 import { prisma } from "@/lib/prisma";
@@ -263,6 +264,10 @@ export default async function KaryakartaDashboardPage() {
 
       <div className="mt-6">
         <KaryakartaIdCardPanel />
+      </div>
+
+      <div className="mt-6">
+        <SupportTicketPanel />
       </div>
     </main>
   );
