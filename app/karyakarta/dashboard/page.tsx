@@ -56,6 +56,18 @@ export default async function KaryakartaDashboardPage() {
   const registration = record.registrations[0] ?? null;
   const now = new Date();
 
+  const notices = await prisma.notice.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    take: 5,
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      publishedAt: true,
+    },
+  });
+
   const profileFields = [
     record.name,
     record.phone,
@@ -213,6 +225,41 @@ export default async function KaryakartaDashboardPage() {
           )}
         </section>
       </div>
+
+      <section className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-bold text-stone-950">सूचनाएँ और घोषणाएँ</h2>
+        <p className="mt-1 text-sm text-stone-600">
+          प्रशासन द्वारा जारी नवीनतम सूचनाएँ देखें।
+        </p>
+
+        {notices.length ? (
+          <ul className="mt-4 divide-y divide-stone-100">
+            {notices.map((notice) => (
+              <li className="py-4" key={notice.id}>
+                <p className="text-sm font-bold text-stone-900">
+                  {notice.title}
+                </p>
+                <p className="mt-1 whitespace-pre-line text-sm leading-6 text-stone-600">
+                  {notice.content}
+                </p>
+                {notice.publishedAt ? (
+                  <p className="mt-2 text-xs text-stone-500">
+                    प्रकाशित:{" "}
+                    {new Intl.DateTimeFormat("hi-IN", {
+                      dateStyle: "medium",
+                      timeZone: "Asia/Kolkata",
+                    }).format(notice.publishedAt)}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-stone-600">
+            अभी कोई सूचना उपलब्ध नहीं है।
+          </p>
+        )}
+      </section>
 
       <div className="mt-6">
         <KaryakartaIdCardPanel />
