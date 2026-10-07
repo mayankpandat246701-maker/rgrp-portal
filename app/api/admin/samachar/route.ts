@@ -111,6 +111,7 @@ export async function POST(request: Request) {
   const parsed = newsPostSchema.safeParse(body);
   if (!parsed.success) return errorResponse("समाचार विवरण जाँचें।", 400);
   const input = parsed.data;
+  const slug = input.slug?.trim() || createSlug(input.title);
   if (!hasEditorialScope(admin, input.state, input.district)) {
     return errorResponse("आपको इस क्षेत्र में समाचार प्रबंधित करने की अनुमति नहीं है।", 403);
   }
@@ -121,7 +122,18 @@ export async function POST(request: Request) {
     return errorResponse("आप समाचार प्रकाशित नहीं कर सकते।", 403);
   }
 
-  const now = new Date();
+  function createSlug(title: string): string {
+  const base = title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "samachar";
+
+  return `${base}-${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
+}
+
+const now = new Date();
   const scheduledForLater = Boolean(input.scheduledPublishAt && input.scheduledPublishAt > now);
   const archivedAt = input.archivedAt;
   try {
@@ -129,6 +141,7 @@ export async function POST(request: Request) {
       const created = await tx.newsPost.create({
         data: {
           ...input,
+          slug,
           tags: [...new Set(input.tags)],
           state: input.state || null,
           district: input.district || null,

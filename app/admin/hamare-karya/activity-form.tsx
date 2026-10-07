@@ -96,8 +96,10 @@ export function ActivityForm({ initialActivity, canPublish }: { initialActivity:
     setSaving(true);
     setError("");
     try {
+      const slug = activity.slug?.trim() || "";
       const payload = {
         ...activity,
+        slug: slug || undefined,
         images: undefined,
         tehsilOrBlock: activity.tehsilOrBlock || null,
         cityOrVillage: activity.cityOrVillage || null,

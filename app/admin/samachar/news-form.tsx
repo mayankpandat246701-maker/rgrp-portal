@@ -61,8 +61,10 @@ export function NewsForm({
     setError("");
     setNotice("");
     try {
+      const slug = post.slug?.trim() || "";
       const payload = {
         ...post,
+        slug: slug || undefined,
         state: post.state || null,
         district: post.district || null,
         tags: post.tags,

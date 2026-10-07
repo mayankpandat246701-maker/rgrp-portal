@@ -80,15 +80,28 @@ export async function POST(request: Request) {
   const parsed = groundActivitySchema.safeParse(body);
   if (!parsed.success) return errorResponse("कार्य विवरण जाँचें।", 400);
   const input = parsed.data;
+  const slug = input.slug?.trim() || createSlug(input.title);
   if (!hasEditorialScope(admin, input.state, input.district)) return errorResponse("आपको इस क्षेत्र में कार्य प्रबंधित करने की अनुमति नहीं है।", 403);
   if (input.isPublished && !canPublishScopedContent(admin, input.state, input.district)) return errorResponse("आप कार्य प्रकाशित नहीं कर सकते।", 403);
-  const now = new Date();
+  function createSlug(title: string): string {
+  const base = title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "karya";
+
+  return `${base}-${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
+}
+
+const now = new Date();
   const scheduledForLater = Boolean(input.scheduledPublishAt && input.scheduledPublishAt > now);
   try {
     const activity = await prisma.$transaction(async (tx) => {
       const created = await tx.groundActivity.create({
         data: {
           ...input,
+          slug,
           tehsilOrBlock: input.tehsilOrBlock || null,
           cityOrVillage: input.cityOrVillage || null,
           publicLocationLabel: input.publicLocationLabel || null,

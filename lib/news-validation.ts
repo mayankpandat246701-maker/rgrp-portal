@@ -16,7 +16,12 @@ export const newsCategories = [
 ] as const;
 
 export const newsPostSchema = z.object({
-  slug: z.string().trim().min(1).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  slug: z
+  .string()
+  .trim()
+  .max(120)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .optional(),
   title: z.string().trim().min(1).max(180),
   shortSummary: z.string().trim().min(1).max(600),
   fullContent: z.string().trim().min(1).max(20_000),
