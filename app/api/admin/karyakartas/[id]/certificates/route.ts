@@ -9,6 +9,7 @@ import {
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createJoiningCertificatePdf } from "@/lib/joining-certificate-pdf";
 import { isJoiningCertificateEligible } from "@/lib/joining-certificate";
+import { isSakshamKaryakartaEligible } from "@/lib/saksham-karyakarta-eligibility";
 import {
   createStorageKey,
   deletePrivateFile,
@@ -104,6 +105,10 @@ export async function POST(_request: Request, context: RouteContext) {
         state: true,
         district: true,
         profileStatus: true,
+        status: true,
+        isPublicProfile: true,
+        isEmergencyHidden: true,
+        archivedAt: true,
         registrations: {
           where: { status: "ACTIVE" },
           orderBy: { createdAt: "desc" },
@@ -135,6 +140,27 @@ export async function POST(_request: Request, context: RouteContext) {
     );
   }
   const registration = member.registrations[0];
+
+  const sakshamEligible = Boolean(
+    registration &&
+      isSakshamKaryakartaEligible({
+        profileStatus: member.profileStatus,
+        memberStatus: member.status,
+        isPublicProfile: member.isPublicProfile,
+        isEmergencyHidden: member.isEmergencyHidden,
+        archivedAt: member.archivedAt,
+        registrationStatus: registration.status,
+        registrationExpiryDate: registration.expiryDate,
+      }),
+  );
+
+  if (!sakshamEligible) {
+    return errorResponse(
+      "आपके द्वारा दर्ज विवरण साक्षम कार्यकर्ता सूची में उपलब्ध नहीं हैं। कृपया पहले कार्यकर्ता को साक्षम कार्यकर्ता सूची में जोड़ें।",
+      409,
+    );
+  }
+
   const issueDate = new Date();
   if (
     !registration ||
