@@ -54,15 +54,7 @@ export function SanghSection({ messages }: { messages: Leader[] }) {
           </div>
         )}
 
-        <div className="mt-10 text-center">
-          <Link
-            href="/saksham-karyakarta"
-            className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-600/25 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-          >
-            सभी सक्षम कार्यकर्ता देखें
-            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-          </Link>
-        </div>
+
       </div>
     </section>
   );

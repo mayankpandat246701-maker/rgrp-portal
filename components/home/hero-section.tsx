@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { WelcomeSong } from "@/components/home/welcome-song";
 import Image from "next/image";
 
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-white">
+      <WelcomeSong />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-orange-300/30 blur-3xl"
@@ -22,7 +24,7 @@ export function HeroSection() {
           alt=""
           width={640}
           height={640}
-          priority={false}
+          priority={true}
           className="h-auto w-[70%] max-w-[640px] opacity-[0.12] mix-blend-multiply sm:w-[45%]"
         />
       </div>
@@ -47,13 +49,6 @@ export function HeroSection() {
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/saksham-karyakarta"
-              className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-500 px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-600/25 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-600/30 sm:w-auto"
-            >
-              Saksham Directory देखें
-              <span className="transition group-hover:translate-x-0.5">→</span>
-            </Link>
 
             <Link
               href="/#ground-activities"
