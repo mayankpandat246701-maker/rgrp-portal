@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/admin-permissions";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { isIdCardEligible } from "@/lib/id-card-eligibility";
+import { isSakshamKaryakartaEligible } from "@/lib/saksham-karyakarta-eligibility";
 import { isSameIndianMobile } from "@/lib/karyakarta-mobile";
 import { prisma } from "@/lib/prisma";
 import {
@@ -91,6 +92,9 @@ export async function POST(request: Request) {
       phone: true,
       profileStatus: true,
       archivedAt: true,
+      status: true,
+      isPublicProfile: true,
+      isEmergencyHidden: true,
       idCardFrontPath: true,
       idCardBackPath: true,
       registrations: {
@@ -122,6 +126,32 @@ export async function POST(request: Request) {
   }
 
   const registration = member.registrations[0] ?? null;
+
+  const sakshamEligible = Boolean(
+    registration &&
+      isSakshamKaryakartaEligible({
+        profileStatus: member.profileStatus,
+        memberStatus: member.status,
+        isPublicProfile: member.isPublicProfile,
+        isEmergencyHidden: member.isEmergencyHidden,
+        archivedAt: member.archivedAt,
+        registrationStatus: registration.status,
+        registrationExpiryDate: registration.expiryDate,
+      }),
+  );
+
+  if (!sakshamEligible) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          message:
+            "आपके द्वारा दर्ज विवरण साक्षम कार्यकर्ता सूची में उपलब्ध नहीं हैं। कृपया पहले कार्यकर्ता को साक्षम कार्यकर्ता सूची में जोड़ें।",
+        },
+      },
+      { status: 404, headers: { "Cache-Control": "no-store" } },
+    );
+  }
   const eligible = Boolean(
     registration &&
       isIdCardEligible({
